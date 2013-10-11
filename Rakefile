@@ -12,15 +12,20 @@ end
 require 'rake'
 
 require 'jeweler'
+require './lib/spf/version.rb'
 Jeweler::Tasks.new do |gem|
   # gem is a Gem::Specification... see http://docs.rubygems.org/read/chapter/20 for more options
-  gem.name = "spf-ruby"
-  gem.homepage = "http://github.com/agaridata/spf-ruby"
-  gem.license = "MIT"
-  gem.summary = %Q{TODO: one-line summary of your gem}
-  gem.description = %Q{TODO: longer description of your gem}
-  gem.email = "julian@mehnle.net"
-  gem.authors = ["Julian Mehnle"]
+  gem.name        = 'spf'
+  gem.version     = SPF::VERSION
+  gem.homepage    = 'https://github.com/agaridata/spf-ruby'
+  gem.authors     = ['Andrew Flury', 'Julian Mehnle']
+  gem.email       = ['code@agari.com', 'aflury@agari.com', 'jmehnle@agari.com']
+  gem.license     = 'Apache-2'
+  gem.summary     = 'Implementation of the Sender Policy Framework'
+  gem.description = <<-DESCRIPTION
+    An object-oriented Ruby implementation of the Sender Policy Framework (SPF)
+    e-mail sender authentication system, fully compliant with RFC 4408.
+  DESCRIPTION
   # dependencies defined in Gemfile
 end
 Jeweler::RubygemsDotOrgTasks.new
@@ -47,3 +52,5 @@ Rake::RDocTask.new do |rdoc|
   rdoc.rdoc_files.include('README*')
   rdoc.rdoc_files.include('lib/**/*.rb')
 end
+
+# vim:sw=2 sts=2
