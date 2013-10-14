@@ -20,7 +20,7 @@ Jeweler::Tasks.new do |gem|
   gem.homepage    = 'https://github.com/agaridata/spf-ruby'
   gem.authors     = ['Andrew Flury', 'Julian Mehnle']
   gem.email       = ['code@agari.com', 'aflury@agari.com', 'jmehnle@agari.com']
-  gem.license     = 'Apache-2'
+  gem.license     = 'none (all rights reserved)'
   gem.summary     = 'Implementation of the Sender Policy Framework'
   gem.description = <<-DESCRIPTION
     An object-oriented Ruby implementation of the Sender Policy Framework (SPF)

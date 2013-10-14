@@ -9,7 +9,7 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Andrew Flury", "Julian Mehnle"]
-  s.date = "2013-10-11"
+  s.date = "2013-10-14"
   s.description = "    An object-oriented Ruby implementation of the Sender Policy Framework (SPF)\n    e-mail sender authentication system, fully compliant with RFC 4408.\n"
   s.email = ["code@agari.com", "aflury@agari.com", "jmehnle@agari.com"]
   s.extra_rdoc_files = [
@@ -19,16 +19,26 @@ Gem::Specification.new do |s|
   s.files = [
     ".document",
     ".rspec",
+    ".ruby-version",
     "Gemfile",
+    "Gemfile.lock",
     "LICENSE.txt",
     "README.rdoc",
     "Rakefile",
-    "VERSION",
+    "lib/spf.rb",
+    "lib/spf/error.rb",
+    "lib/spf/eval.rb",
+    "lib/spf/model.rb",
+    "lib/spf/request.rb",
+    "lib/spf/result.rb",
+    "lib/spf/util.rb",
+    "lib/spf/version.rb",
     "spec/spec_helper.rb",
-    "spec/spf-ruby_spec.rb"
+    "spec/spf_spec.rb",
+    "spf.gemspec"
   ]
   s.homepage = "https://github.com/agaridata/spf-ruby"
-  s.licenses = ["Apache-2"]
+  s.licenses = ["none (all rights reserved)"]
   s.require_paths = ["lib"]
   s.rubygems_version = "1.8.23"
   s.summary = "Implementation of the Sender Policy Framework"
