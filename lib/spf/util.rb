@@ -36,59 +36,74 @@ require 'spf/error'
 # sanitized_string      = SPF::Util->sanitize_string(string)
 #
 
-class SPF::Util
-  
-  IPV4_MAPPED_IPV6_ADDRESS_PATTERN =
-    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})/i
+module SPF
+  module Util
 
-  saved_hostname = nil
+  def self.ipv4_mapped_ipv6_address_pattern
+    /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})/i
+  end
 
   def self.hostname
-    return saved_hostname ||= Socket.gethostbyname(Socket.gethostname).first
+    return @hostname ||= Socket.gethostbyname(Socket.gethostname).first
   end
 
   def self.ipv4_address_to_ipv6(ipv4_address)
-    unless ipv4_address.is_a?(IP::V4)
+    unless IP::V4 === ipv4_address
       raise SPF::InvalidOptionValueError.new('IP::V4 address expected')
     end
-    return IP.new('::ffff:' + ipv4_address.to_s + '/' + (ipv4_address.to_a[2] - 32 + 128).to_s)
+    return IP.new("::ffff:#{ipv4_address}/#{ipv4_address.pfxlen - 32 + 128}")
   end
 
   def self.ipv6_address_to_ipv4(ipv6_address)
-    unless (ipv6_address.is_a?(IP::V6) and ipv6_address =~ IPV4_MAPPED_IPV6_ADDRESS_PATTERN)
-      raise SPF::InvalidOptionValueError.new('IP::V4-mapped IP::V6 address expected')
+    unless IP::V6 === ipv6_address and ipv6_address.ipv4_mapped?
+      raise SPF::InvalidOptionValueError, 'IPv4-mapped IP::V6 address expected'
     end
-    mask = ipv6_address.to_a[2]
-    return IP.new([$1 + $2].pack('H8').unpack('C4') + mask >= 128 - 32 ? mask - 128 + 32 : 0)
+    return ipv6_address.native
   end
 
   def self.ipv6_address_is_ipv4_mapped(ipv6_address)
-    return (ipv6_address.is_a?(IP::V6) and ipv6_address =~ IPV4_MAPPED_IPV6_ADDRESS_PATTERN)
+    return ipv6_address.ipv4_mapped?
   end
 
   def self.ip_address_to_string(ip_address)
-    unless ip_address.is_a?(IP::V4) or ip_address.is_a?(IP::V6)
-      raise SPF::InvalidOptionValueError.new('IP::V4 IP::V6 address expected')
+    unless IP::V4 === ip_address or IP::V6 === ip_address
+      raise SPF::InvalidOptionValueError.new('IP::V4 or IP::V6 address expected')
     end
-    return ip_address.to_s.downcase
+    return ip_address.to_addr
   end
 
   def self.ip_address_reverse(ip_address)
-    unless ip_address.is_a?(IP::V4) or ip_address.is_a?(IP::V6)
+    unless IP::V4 === ip_address or IP::V6 === ip_address
       raise SPF::InvalidOptionValueError.new('IP::V4 or IP::V6 address expected')
     end
-    begin
-      # Treat IPv4-mapped IPv6 addresses as IPv4 addresses:
-      ip_address = ipv6_address_to_ipv4(ip_address)
-    rescue SPF::InvalidOptionValueError
-      # Ignore conversion errors.
-    end
-    if ip_address.is_a?(IP::V4)
-      return ip_address.to_s.split('.').reverse.join('.') + '.in-addr.arpa.'
-    elsif ip_address.is_a?(IP::V6)
-      nibbles = ip_address.to_hex.split('')
-      nibbles = nibbles[0 .. ip_address.to_a[2] / 8 - 1]
-      return nibbles.reverse.join('.') + '.ip6.arpa.'
+    # Treat IPv4-mapped IPv6 addresses as IPv4 addresses:
+    ip_address = ipv6_address_to_ipv4(ip_address) if ip_address.ipv4_mapped?
+    case ip_address
+    when IP::V4
+      octets  = ip_address.to_addr.split('.').first(ip_address.pfxlen / 8)
+      return "#{octets .reverse.join('.')}.in-addr.arpa."
+    when IP::V6
+      nibbles = ip_address.to_hex .split('') .first(ip_address.pfxlen / 4)
+      return "#{nibbles.reverse.join('.')}.ip6.arpa."
     end
   end
+
+  def self.valid_domain_for_ip_address(
+    sever, request, ip_address, domain,
+    find_best_match   = false,
+    accept_any_domain = false
+  )
+    # TODO
+  end
+
+  def self.sanitize_string(string)
+    return \
+      string &&
+      string.
+        gsub(/([\x00-\x1f\x7f-\xff])/) { |c| sprintf('\x%02x',   c.ord) }.
+        gsub(/([\x{0100}-\x{ffff}])/)  { |u| sprintf('\x{%04x}', u.ord) }
+  end
+
 end
+
+# vim:sw=2 sts=2
