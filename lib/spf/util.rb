@@ -101,9 +101,10 @@ module SPF
       string &&
       string.
         gsub(/([\x00-\x1f\x7f-\xff])/) { |c| sprintf('\x%02x',   c.ord) }.
-        gsub(/([\x{0100}-\x{ffff}])/)  { |u| sprintf('\x{%04x}', u.ord) }
+        gsub(/([\u{0100}-\u{ffff}])/)  { |u| sprintf('\x{%04x}', u.ord) }
   end
 
+  end
 end
 
 # vim:sw=2 sts=2

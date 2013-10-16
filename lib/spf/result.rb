@@ -5,6 +5,74 @@ class SPF::Result
 
   attr_reader :server, :request
 
+  class SPF::Result::Pass < SPF::Result
+    CODE = :pass
+  end
+
+  class SPF::Result::Fail < SPF::Result
+    CODE = :fail
+
+    def authority_explanation
+      if self.instance_variable_defined(:@authority_explanation)
+        return @authority_explanation
+      end
+
+      @authority_explanation = nil
+
+      server  = @server
+      request = @request
+
+      authority_explanation_macrostring = request.state('authority_explanation')
+
+      # If an explicit explanation was specified by the authority domain...
+      if authority_explanation_macrostring
+        begin
+          # ... then try to expand it:
+          @authority_explanation = authority_explanation_macrostring.expand
+        rescue SPF::InvalidMacroString
+          # Igonre expansion errors and leave authority explanation undefined.
+        end
+      end
+
+      # If no authority explanation could be determined so far...
+      unless @authority_explanation
+        @authority_explanation = server.default_authority_explanation.new({:request => request}).expand
+      end
+      return @authority_explanation
+    end
+  end
+
+  class SPF::Result::SoftFail < SPF::Result
+    CODE = :softfail
+  end
+
+  class SPF::Result::Neutral < SPF::Result
+    CODE = :neutral
+  end
+
+  class SPF::Result::NeutralByDefault < SPF::Result::Neutral
+    # This is a special-case of the Neutral result that is thrown as a default
+    # when "falling off" the end of the record.  See SPF::Record.eval().
+    NAME = :neutral_by_default
+  end
+
+  class SPF::Result::None < SPF::Result
+    CODE = :none
+  end
+
+  class SPF::Result::Error < SPF::Result
+    CODE = :error
+  end
+
+  class SPF::Result::TempError < SPF::Result::Error
+    CODE = :temperror
+  end
+
+  class SPF::Result::PermError < SPF::Result::Error
+    CODE = :permerror
+  end
+
+
   RESULT_CLASSES = {
     :pass       => SPF::Result::Pass,
     :fail       => SPF::Result::Fail,
@@ -126,65 +194,6 @@ class SPF::Result
       self.local_explanation,
       info_string
     )
-  end
-
-  class SPF::Result::Pass < SPF::Result
-    CODE = :pass
-  end
-
-  class SPF::Result::Fail < SPF::Result
-    CODE = :fail
-
-    def authority_explanation
-      if self.instance_variable_defined(:@authority_explanation)
-        return @authority_explanation
-      end
-
-      @authority_explanation = nil
-
-      server  = @server
-      request = @request
-
-      authority_explanation_macrostring = request.state('authority_explanation')
-
-      # If an explicit explanation was specified by the authority domain...
-      if authority_explanation_macrostring
-        begin
-          # ... then try to expand it:
-          @authority_explanation = authority_explanation_macrostring.expand
-        rescue SPF::InvalidMacroString
-          # Igonre expansion errors and leave authority explanation undefined.
-        end
-      end
-
-      # If no authority explanation could be determined so far...
-      unless @authority_explanation
-        @authority_explanation = server.default_authority_explanation.new({:request => request}).expand
-      end
-      return @authority_explanation
-    end
-  end
-
-  class SPF::Result::SoftFail < SPF::Result
-    CODE = :softfail
-  end
-
-  class SPF::Result::Neutral < SPF::Result
-    CODE = :neutral
-  end
-
-  class SPF::Result::NeutralByDefault < SPF::Result::Neutral
-    # This is a special-case of the Neutral result that is thrown as a default
-    # when "falling off" the end of the record.  See SPF::Record.eval().
-    NAME = :neutral_by_default
-  end
-
-  class SPF::Result::None < SPF::Result
-    CODE = :none
-  end
-
-  class SPF::Result::Error < SPF::Result
-    CODE = :error
   end
 
 end
