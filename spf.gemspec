@@ -13,7 +13,6 @@ Gem::Specification.new do |s|
   s.description = "    An object-oriented Ruby implementation of the Sender Policy Framework (SPF)\n    e-mail sender authentication system, fully compliant with RFC 4408.\n"
   s.email = ["code@agari.com", "aflury@agari.com", "jmehnle@agari.com"]
   s.extra_rdoc_files = [
-    "LICENSE.txt",
     "README.rdoc"
   ]
   s.files = [
@@ -22,7 +21,6 @@ Gem::Specification.new do |s|
     ".ruby-version",
     "Gemfile",
     "Gemfile.lock",
-    "LICENSE.txt",
     "README.rdoc",
     "Rakefile",
     "lib/spf.rb",
