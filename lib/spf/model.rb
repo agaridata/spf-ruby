@@ -547,14 +547,152 @@ end
 
 class SPF::Mod < SPF::Term
 
-  class SPF::Mod::Redirect
+  def initialize(options = {})
+    @parse_text  = options[:parse_text]
+    @text        = options[:text]
+    @domain_spec = options[:domain_spec]
+
+    @parse_text = @text unless @parse_text
+
+    if @domain_spec and not @domain_spec.is_a?(SPF::MacroString)
+      @domain_spec = SPF::MacroString.new({:text => @domain_spec})
+    end
   end
 
-  class SPF::Mod::Exp
+  def parse
+    raise SPF::NothingToParseError('Nothing to parse for modifier') unless @parse_text
+    self.parse_name
+    self.parse_params(true)
+    self.parse_end
   end
 
+  def parse_name
+    @parse_text.sub(/^(#{NAME_PATTERN})=/, '')
+    if $1
+      @name = $1
+    else
+      raise SPF::InvalidModError.new(
+        "Unexpected modifier name encoutered in #{@text}")
+    end
+  end
+
+  def parse_params(required = false)
+    # Parse generic macro string of parameters text (should be overridden in sub-classes):
+    @parse_text.sub(/^(#{MACRO_STRING_PATTERN})$/, '')
+    if $1
+      @params_text = $1
+    elsif required
+      raise SPF::InvalidMacroStringError.new(
+        "Invalid macro string encountered in #{@text}")
+    end
+  end
+
+  def parse_end
+    unless @parse_text == ''
+      raise SPF::JunkInTermError("Junk encountered in modifier #{@text}")
+    end
+    @parse_text = nil
+  end
+
+  def to_s
+    return sprintf(
+      '%s=%s',
+      @name,
+      @params ? @params : ''
+    )
+  end
+
+  class SPF::Mod::GlobalMod < SPF::Mod
+  end
+
+  class SPF::PositionalMod < SPF::Mod
+  end
+
+  class SPF::UnknownMod < SPF::Mod
+  end
+
+  class SPF::Mod::Exp < SPF::Mod
+
+    attr_reader :domain_spec
+
+    NAME          = 'exp'
+    NAME_PATTERN  = /#{NAME}/i
+    PRECEDENCE    = 0.2
+
+    def parse_params
+      self.parse_domain_spec(true)
+    end
+
+    def params
+      return @domain_spec
+    end
+
+    def process(server, request, result)
+      begin
+        exp_domain = @domain_spec.new({:server => server, :request => request})
+        txt_packet = server.dns_lookup(exp_domain, 'TXT')
+        txt_rrs    = txt_packet.answer.select {|x| x.type == 'TXT'}.map {|x| x.answer}
+        unless text_rrs.length > 0
+          server.throw_result(:permerror, request,
+            "No authority explanation string available at domain '#{exp_domain}'") # RFC 4408, 6.2/4
+        end
+        unless text_rrs.length == 1
+          server.throw_result(:permerror, request,
+            "Redundant authority explanation strings found at domain '#{exp_domain}'") # RFC 4408, 6.2/4
+        end
+        explanation = SPF::MacroString.new(
+          :text           => txt_rrs[0].char_str_list.join(''),
+          :server         => server,
+          :request        => request,
+          :is_explanation => true
+        )
+        request.state(:authority_explanation, explanation)
+      rescue SPF::DNSError, SPF::Result::Error
+        # Ignore DNS and other errors.
+      end
+    end
+  end
+
+  class SPF::Mod::Redirect < SPF::Mod::GlobalMod
+
+    attr_reader :domain_spec
+
+    NAME          = 'redirect'
+    NAME_PATTERN  = /#{NAME}/i
+    PRECEDENCE    = 0.8
+
+    def parse_params
+      self.parse_domain_spec(true)
+    end
+
+    def params
+      return @domain_spec
+    end
+
+    def process(server, request, result)
+      server.count_dns_interactive_terms(request)
+
+      # Only perform redirection if no mechanism matched (RFC 4408, 6.1/1):
+      return unless result.is_a?(SPF::Result::NeutralByDefault)
+
+      # Create sub-request with mutated authorithy domain:
+      authority_domain = @domain_spec.new({:server => server, :request => request})
+      sub_request = request.new_sub_request({:authority_domain => authority_domain})
+
+      # Process sub-request:
+      result = server.process(sub_request)
+
+      # Translate result of sub-request (RFC 4408, 6.1/4):
+      if result.is_a?(SPF::Result::None)
+        server.throw_result(:permerror, request,
+          "Redirect domain '#{authority_domain}' has no applicable sender policy")
+      end
+
+      # Propagate any other results as-is:
+      result.throw
+    end
+  end
 end
-
 
 class SPF::Record
 
@@ -628,7 +766,7 @@ class SPF::Record
       if mod_class
         # Known modifier.
         mod = mod_class.new_from_string(mod_text)
-        if mod.is_a?(SPF::GlobalMod)
+        if mod.is_a?(SPF::Mod::GlobalMod)
           # Global modifier.
           unless @global_mods[mod_name]
             raise SPF::DuplicateGlobalMod.new("Duplicate global modifier '#{mod_name}' encountered")

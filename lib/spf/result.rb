@@ -13,7 +13,7 @@ class SPF::Result
     CODE = :fail
 
     def authority_explanation
-      if self.instance_variable_defined(:@authority_explanation)
+      if self.instance_variable_defined?(:@authority_explanation)
         return @authority_explanation
       end
 
