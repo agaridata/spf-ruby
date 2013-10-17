@@ -602,7 +602,7 @@ class SPF::Mod < SPF::Term
     )
   end
 
-  class SPF::Mod::GlobalMod < SPF::Mod
+  class SPF::GlobalMod < SPF::Mod
   end
 
   class SPF::PositionalMod < SPF::Mod
@@ -653,7 +653,7 @@ class SPF::Mod < SPF::Term
     end
   end
 
-  class SPF::Mod::Redirect < SPF::Mod::GlobalMod
+  class SPF::Mod::Redirect < SPF::GlobalMod
 
     attr_reader :domain_spec
 
@@ -766,7 +766,7 @@ class SPF::Record
       if mod_class
         # Known modifier.
         mod = mod_class.new_from_string(mod_text)
-        if mod.is_a?(SPF::Mod::GlobalMod)
+        if mod.is_a?(SPF::GlobalMod)
           # Global modifier.
           unless @global_mods[mod_name]
             raise SPF::DuplicateGlobalMod.new("Duplicate global modifier '#{mod_name}' encountered")
