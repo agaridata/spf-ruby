@@ -9,48 +9,49 @@ end
 
 class SPF::Term
 
-  NAME_PATTERN               = / [:alpha:] [[:alnum:]\-_.]* /x
+  NAME_PATTERN               = '[[:alpha:]] [[:alnum:]\\-_\\.]*'
 
-  MACRO_LITERAL_PATTERN      = /[!-$&-~]/
-  MACRO_DELIMITER            = /[.\-+,\/_=]/
-  MACRO_TRANSFORMERS_PATTERN = /\d*r?/
-  MACRO_EXPAND_PATTERN       = /
+  MACRO_LITERAL_PATTERN      = "[!-$&-~]"
+  MACRO_DELIMITER            = "[\\.\\-+,\\/_=]"
+  MACRO_TRANSFORMERS_PATTERN = "\\d*r?"
+  MACRO_EXPAND_PATTERN       = "
       %
       (?:
-          { [:alpha:] } #{MACRO_TRANSFORMERS_PATTERN} #{MACRO_DELIMITER}* } |
+          { [[:alpha:]] } #{MACRO_TRANSFORMERS_PATTERN} #{MACRO_DELIMITER}* } |
           [%_-]
       )
-  /x
+  "
 
-  MACRO_STRING_PATTERN                    = /
+  MACRO_STRING_PATTERN                    = "
       (?:
           #{MACRO_EXPAND_PATTERN}  |
           #{MACRO_LITERAL_PATTERN}
       )*
-  /x
+  "
 
-  TOPLEVEL_PATTERN                        = /
-      [:alnum:]+ - [[:alnum:]-]* [:alnum:]
-      [:alnum:]*    [:alpha:]    [:alnum:]*
-  /x
+  TOPLABEL_PATTERN                        = "
+      [[:alnum:]_-]+ - [[:alnum:]-]* [[:alnum:]] |
+      [[:alnum:]]*   [[:alpha:]]   [[:alnum:]]*
+  "
 
-  DOMAIN_END_PATTERN         = /
-      \. #{TOPLEVEL_PATTERN} \.? |
-      #{MACRO_EXPAND_PATTERN}
-  /x
+  DOMAIN_END_PATTERN         = "
+    (?: \\. #{TOPLABEL_PATTERN} \\.? |
+            #{MACRO_EXPAND_PATTERN}
+    )
+  "
 
-  DOMAIN_SPEC_PATTERN        = / #{MACRO_STRING_PATTERN} #{DOMAIN_END_PATTERN} /x
+  DOMAIN_SPEC_PATTERN        = " #{MACRO_STRING_PATTERN} #{DOMAIN_END_PATTERN} "
 
-  QNUM_PATTERN               = / 25[0-5] | 2[0-4]\d | 1\d\d | [1-9]\d | \d /x
-  IPV4_ADDRESS_PATTERN       = / #{QNUM_PATTERN} (?: \. #{QNUM_PATTERN}){3} /x
+  QNUM_PATTERN               = " (?: 25[0-5] | 2[0-4]\\d | 1\\d\\d | [1-9]\\d | \\d ) "
+  IPV4_ADDRESS_PATTERN       = " #{QNUM_PATTERN} (?: \\. #{QNUM_PATTERN}){3} "
 
-  HEXWORD_PATTERN            = /[:xdigit:]{1,4}/
+  HEXWORD_PATTERN            = "[[:xdigit:]]{1,4}"
 
   TWO_HEXWORDS_OR_IPV4_ADDRESS_PATTERN = /
       #{HEXWORD_PATTERN} : #{HEXWORD_PATTERN} | #{IPV4_ADDRESS_PATTERN}
   /x
 
-  IPV6_ADDRESS_PATTERN       = /
+  IPV6_ADDRESS_PATTERN       = "
     #                x:x:x:x:x:x:x:x |     x:x:x:x:x:x:n.n.n.n
     (?: #{HEXWORD_PATTERN} : ){6}                                   #{TWO_HEXWORDS_OR_IPV4_ADDRESS_PATTERN} |
     #                 x::x:x:x:x:x:x |      x::x:x:x:x:n.n.n.n
@@ -73,26 +74,28 @@ class SPF::Term
  :: (?: #{HEXWORD_PATTERN} : ){0,5}                                 #{TWO_HEXWORDS_OR_IPV4_ADDRESS_PATTERN} |
     #                             :: |                       -
  ::
-  /x
+  "
 
-  def self.new_from_string(text, options)
-    term = SPF::Term.new(options, {:text => text})
+  def self.new_from_string(text, options = {})
+    #term = SPF::Term.new(options, {:text => text})
+    options[:text] = text
+    term = self.new(options)
     term.parse
     return term
   end
 
   def parse_domain_spec(required = false)
-    if @parse_text.sub!(/^#{DOMAIN_SPEC_PATTERN}/, '')
+    if @parse_text.sub!(/^(#{DOMAIN_SPEC_PATTERN})/x, '')
       domain_spec = $1
       domain_spec.sub!(/^(.*?)\.?$/, $1)
     elsif required
-      raise SPF::TermDomainSpecExpected.new(
+      raise SPF::TermDomainSpecExpectedError.new(
         "Missing required domain-spec in '#{@text}'")
     end
   end
 
   def parse_ipv4_address(required = false)
-    if @parse_text.sub!(/^(#{IPV4_ADDRESS_PATTERN})/, '')
+    if @parse_text.sub!(/^(#{IPV4_ADDRESS_PATTERN})/x, '')
       @ip_address = $1
     elsif required
       raise SPF::TermIPv4AddressExpectedError.new(
@@ -112,18 +115,18 @@ class SPF::Term
       raise SPF::TermIPv4PrefixLengthExpected.new(
         "Missing required IPv4 prefix length in '#{@text}")
     else
-      @ipv4_prefix_length = DEFAULT_IPV4_PREFIX_LENGTH
+      @ipv4_prefix_length = self.default_ipv4_prefix_length
     end
   end
 
   def parse_ipv4_network(required = false)
     self.parse_ipv4_address(required)
-    self.parse_parse_ipv4_prefix_length
+    self.parse_ipv4_prefix_length
     @ip_address = IP.new("#{@ip_address}/#{@ipv4_prefix_length}")
   end
 
   def parse_ipv6_address(required = false)
-    if @parse_text.sub!(/(#{IPV6_ADDRESS_PATTERN})(?=\/|$)/, '')
+    if @parse_text.sub!(/(#{IPV6_ADDRESS_PATTERN})(?=\/|$)/x, '')
       @ip_address = $1
     elsif required
       raise SPF::TermIPv6AddressExpected.new(
@@ -143,7 +146,7 @@ class SPF::Term
       raise SPF::TermIPvPrefixLengthExpected.new(
         "Missing required IPv6 prefix length in '#{@text}'")
     else
-      @ipv6_prefix_length = DEFAULT_IPV6_PREFIX_LENGTH
+      @ipv6_prefix_length = self.default_ipv6_prefix_length
     end
   end
 
@@ -175,11 +178,11 @@ end
 class SPF::Mech < SPF::Term
 
   DEFAULT_QUALIFIER          = SPF::Record::DEFAULT_QUALIFIER
-  DEFAULT_IPV4_PREFIX_LENGTH = 32
-  DEFAULT_IPV6_PREFIX_LENGTH = 128
+  def default_ipv4_prefix_length; 32;   end
+  def default_ipv6_prefix_length; 128;  end
 
-  QUALIFIER_PATTERN          = /[+\-~\?]/
-  NAME_PATTERN               = / #{NAME_PATTERN} (?= [:\/\x20] | $ ) /x
+  QUALIFIER_PATTERN          = '[+\\-~\\?]'
+  NAME_PATTERN               = "#{NAME_PATTERN} (?= [:\\/\\x20] | $ )"
 
   EXPLANATION_TEMPLATES_BY_RESULT_CODE = {
     :pass     => "Sender is authorized to use '%{s}' in '%{_scope}' identity",
@@ -189,7 +192,8 @@ class SPF::Mech < SPF::Term
   }
 
   def initialize(options)
-    super(options)
+    super()
+    @text = options[:text]
     if not self.instance_variable_defined?(:@parse_text)
       @parse_text = @text
     end
@@ -203,14 +207,14 @@ class SPF::Mech < SPF::Term
     if not @parse_text
       raise SPF::NothingToParseError.new('Nothing to parse for mechanism')
     end
-    @parse_qualifier
-    @parse_name
-    @parse_params
-    @parse_end
+    parse_qualifier
+    parse_name
+    parse_params
+    parse_end
   end
 
   def parse_qualifier
-    if @parse_text.sub!(/(#{QUALIFIER_PATTERN})?/, '')
+    if @parse_text.sub!(/(#{QUALIFIER_PATTERN})?/x, '')
       @qualifier = $1 or DEFAULT_QUALIFIER
     else
       raise SPF::InvalidMechQualifierError.new(
@@ -219,7 +223,7 @@ class SPF::Mech < SPF::Term
   end
 
   def parse_name
-    if self.parse_text.sub!(/^ (#{NAME_PATTERN}) (?: : (?=.) )? /x, '')
+    if @parse_text.sub!(/^ (#{NAME_PATTERN}) (?: : (?=.) )? /x, '')
       @name = $1
     else
       raise SPF::InvalidMech.new(
@@ -248,6 +252,8 @@ class SPF::Mech < SPF::Term
   end
 
   def to_s
+    @params = nil unless self.instance_variable_defined?(:@params)
+
     return sprintf(
       '%s%s%s',
       @qualifier == DEFAULT_QUALIFIER ? '' : @qualifier,
@@ -306,10 +312,9 @@ class SPF::Mech < SPF::Term
   end
 
 
-  class A
+  class SPF::Mech::A < SPF::Mech
 
     NAME         = 'a'
-    NAME_PATTERN = /#{NAME}/i;
 
     def parse_params
       self.parse_domain_spec
@@ -321,7 +326,7 @@ class SPF::Mech < SPF::Term
       if @domain_spec
         params += ':' + @domain_spec if @domain_spec
       end
-      if @ipv4_prefix_length and @ipv4_prefix_length != DEFAULT_IPV4_PREFIX_LENGTH
+      if @ipv4_prefix_length and @ipv4_prefix_length != self.default_ipv4_prefix_length
         params += '/' + @ipv4_prefix_length
       end
       if @ipv6_prefix_length and @ipv6_prefix_length != DEFAULT_IPV6_PREFIX_LENGTH
@@ -337,10 +342,9 @@ class SPF::Mech < SPF::Term
 
   end
 
-  class SPF::Mech::All
+  class SPF::Mech::All < SPF::Mech
 
     NAME         = 'all'
-    NAME_PATTERN = /#{NAME}/i
 
     def parse_params
       # No parameters.
@@ -352,10 +356,9 @@ class SPF::Mech < SPF::Term
 
   end
 
-  class Exists
+  class SPF::Mech::Exists < SPF::Mech
 
     NAME         = 'exists'
-    NAME_PATTERN = /#{NAME}/i
       
     def parse_params
       self.parse_domain_spec(true)
@@ -379,10 +382,9 @@ class SPF::Mech < SPF::Term
 
   end
 
-  class IP4
+  class SPF::Mech::IP4 < SPF::Mech
 
     NAME         = 'ip4'
-    NAME_PATTERN = /#{NAME}/i
 
     def parse_params
       self.parse_ipv4_network(true)
@@ -407,10 +409,9 @@ class SPF::Mech < SPF::Term
 
   end
 
-  class IP6
+  class SPF::Mech::IP6 < SPF::Mech
 
     NAME         = 'ip6'
-    NAME_PATTERN = /#{NAME}/i
 
     def parse_params
       self.parse_ipv6_network(true)
@@ -429,10 +430,9 @@ class SPF::Mech < SPF::Term
 
   end
 
-  class Include
+  class SPF::Mech::Include < SPF::Mech
 
     NAME         = 'include'
-    NAME_PATTERN = /#{NAME}/i
 
     def parse_params
       self.parse_domain_spec(true)
@@ -471,10 +471,9 @@ class SPF::Mech < SPF::Term
     end
   end
 
-  class MX
+  class SPF::Mech::MX < SPF::Mech
     
     NAME         = 'mx'
-    NAME_PATTERN = /#{NAME}/i
 
     def parse_params
       self.parse_domain_spec
@@ -486,7 +485,7 @@ class SPF::Mech < SPF::Term
       if @domain_spec
         params += ':' + @domain_spec
       end
-      if @ipv4_prefix_length and @ipv4_prefix_length != DEFAULT_IPV4_PREFIX_LENGTH
+      if @ipv4_prefix_length and @ipv4_prefix_length != self.default_ipv4_prefix_length
         params += '/' + @ipv4_prefix_length
       end
       if @ipv6_prefix_length and @ipv6_prefix_length != DEFAULT_IPV6_PREFIX_LENGTH
@@ -525,9 +524,8 @@ class SPF::Mech < SPF::Term
 
   end
 
-  class PTR
+  class SPF::Mech::PTR < SPF::Mech
     NAME         = 'ptr'
-    NAME_PATTERN = /#{NAME}/i
 
     def parse_params
       self.parse_domain_spec
@@ -567,7 +565,7 @@ class SPF::Mod < SPF::Term
   end
 
   def parse_name
-    @parse_text.sub(/^(#{NAME_PATTERN})=/, '')
+    @parse_text.sub!(/^(#{NAME})=/i, '')
     if $1
       @name = $1
     else
@@ -578,7 +576,7 @@ class SPF::Mod < SPF::Term
 
   def parse_params(required = false)
     # Parse generic macro string of parameters text (should be overridden in sub-classes):
-    @parse_text.sub(/^(#{MACRO_STRING_PATTERN})$/, '')
+    @parse_text.sub!(/^(#{MACRO_STRING_PATTERN})$/x, '')
     if $1
       @params_text = $1
     elsif required
@@ -616,7 +614,6 @@ class SPF::Mod < SPF::Term
     attr_reader :domain_spec
 
     NAME          = 'exp'
-    NAME_PATTERN  = /#{NAME}/i
     PRECEDENCE    = 0.2
 
     def parse_params
@@ -658,7 +655,6 @@ class SPF::Mod < SPF::Term
     attr_reader :domain_spec
 
     NAME          = 'redirect'
-    NAME_PATTERN  = /#{NAME}/i
     PRECEDENCE    = 0.8
 
     def parse_params
@@ -696,7 +692,7 @@ end
 
 class SPF::Record
 
-  attr_reader :SCOPES, :terms, :text
+  attr_reader :terms, :text
 
   RESULTS_BY_QUALIFIER = {
     ''  => :pass,
@@ -726,11 +722,12 @@ class SPF::Record
     end
     self.parse_version_tag
     self.parse_term while @parse_text.length > 0
-    @parse_end
+    #self.parse_end
   end
 
   def parse_version_tag
-    @parse_text.sub(/^(#{self.version_tag_pattern})(?:\x20+|$)/, '')
+    @parse_text.sub!(self.version_tag_pattern, '')
+    #@parse_text.sub(/^(#{self.version_tag_pattern})(?:\x20+|$)/, '')
     unless $1
       raise InvalidRecordVersionError.new(
         "Not a '#{VERSION_TAG}' record: '#{@text}'")
@@ -739,21 +736,22 @@ class SPF::Record
   end
 
   def parse_term
-    if (
-      @parse_text.sub!(/
-        ^
-        (
-           #{SPF::Mech::QUALIFIER_PATTERN}?
-          (#{SPF::Mech::NAME_PATTERN})
-           [^\x20]*
-        )
-        (?: \x20+ | $ )
-        /, '') and $&
-    )
+    regex = /
+      ^
+      (
+        #{SPF::Mech::QUALIFIER_PATTERN}?
+        (#{SPF::Mech::NAME_PATTERN})
+        [^\x20]*
+      )
+      (?: \x20+ | $ )
+    /x
+
+
+    if @parse_text.sub!(regex, '') and $&
       # Looks like a mechanism:
       mech_text  = $1
       mech_name  = $2.downcase
-      mech_class = MECH_CLASSES[mech_name.to_sym]
+      mech_class = self.mech_classes[mech_name.to_sym]
       unless mech_class
         raise SPF::InvalidMech.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
       end
@@ -767,10 +765,10 @@ class SPF::Record
           [^\x20]*
         )
         (?: \x20+ | $ )
-      /, '') and $&
+      /x, '') and $&
     )
       # Looks like a modifier:
-      mod_tet   = $1
+      mod_text  = $1
       mod_name  = $2.downcase
       mod_class = MOD_CLASSES[mod_name]
       if mod_class
@@ -801,7 +799,7 @@ class SPF::Record
   end
 
   def to_s
-    return [@version_tag, @terms, @global_mods].join(' ')
+    return [version_tag, @terms, @global_mods].join(' ')
   end
 
   def eval(server, request)
@@ -828,11 +826,22 @@ class SPF::Record
     }
 
     VERSION_TAG         = 'v=spf1'
-    VERSION_TAG_PATTERN = / v=spf(1) (?= \x20 | $ ) /ix
-    SCOPES              = [:helo, :mfrom]
+    VERSION_TAG_PATTERN = " v=spf(1) (?= \\x20 | $ ) "
+
+    def scopes
+      [:helo, :mfrom]
+    end
+
+    def version_tag
+      'v=spf1'
+    end
+
+    def mech_classes
+      MECH_CLASSES
+    end
 
     def version_tag_pattern
-      / v=spf(1) (?= \x20 | $ ) /ix
+      / v=spf(1) (?: \x20+ | $ ) /ix
     end
 
     def initialize(options = {})
@@ -874,19 +883,28 @@ class SPF::Record
     }
 
     VALID_SCOPE = /^(?: mfrom | pra )$/x
-    VERSION_TAG_PATTERN = /
+    VERSION_TAG = 'v=spf2.0'
+    VERSION_TAG_PATTERN = "
       spf(2\.0)
       \/
       ( (?: mfrom | pra ) (?: , (?: mfrom | pra ) )* )
       (?= \x20 | $ )
-    /ix
+    "
+
+    def version_tag
+      VERSION_TAG
+    end
+
+    def mech_classes
+      MECH_CLASSES
+    end
 
     def version_tag_pattern
       /
         spf(2\.0)
         \/
         ( (?: mfrom | pra ) (?: , (?: mfrom | pra ) )* )
-        (?= \x20 | $ )
+        (?: \x20 | $ )
       /ix
     end
 
@@ -910,7 +928,7 @@ class SPF::Record
 
     def parse_version_tag
 
-      @parse_text.sub(/#{version_tag_pattern}(?:\x20+|$)/, '')
+      @parse_text.sub!(/#{version_tag_pattern}(?:\x20+|$)/, '')
       if $1
         scopes = @scopes = "#{$2}".split(/,/)
         if scopes.empty?

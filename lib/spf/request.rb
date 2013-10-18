@@ -30,6 +30,7 @@ class SPF::Request
     @identity         = options[:identity]
     @ip_address       = options[:ip_address]
     @helo_identity    = options[:helo_identity]
+    @record           = nil
 
     # Scope:
     versions_for_scope = VERSIONS_FOR_SCOPE[@scope] or

@@ -86,7 +86,7 @@ class SPF::Server
 
     begin
       record = self.select_record(request)
-      request.record(record)
+      request.record = record
       record.eval(self, request)
     rescue SPF::Result => r
       result = r
@@ -106,7 +106,7 @@ class SPF::Server
   def resource_typeclass_for_rr_type(rr_type)
     return case rr_type
       when 'TXT'  then Resolv::DNS::Resource::IN::TXT
-      when 'SPF'  then Resolv::DNS::Resource::IN::TXT
+      when 'SPF'  then Resolv::DNS::Resource::IN::SPF
       when 'ANY'  then Resolv::DNS::Resource::IN::ANY
       when 'A'    then Resolv::DNS::Resource::IN::A
       when 'AAAA' then Resolv::DNS::Resource::IN::AAAA
@@ -116,7 +116,6 @@ class SPF::Server
       end
   end
 
-  # FIXME: This needs to be changed to use the Ruby resolver library properly.
   def dns_lookup(domain, rr_type)
     if domain.is_a?(SPF::MacroString)
       domain = domain.expand
@@ -206,6 +205,8 @@ class SPF::Server
       # Unless at least one query succeeded, re-raise the first DNS error that occured.
       raise dns_errors[0] unless dns_errors.length < query_count
 
+      records.flatten!
+
       if records.empty?
         # RFC 4408, 4.5/7
         raise SPF::NoAcceptableRecordError('No applicable sender policy available')
@@ -213,6 +214,7 @@ class SPF::Server
 
       # Discard all records but the highest acceptable version:
       preferred_record_class = records[0].class
+
       records = records.select { |record| record.is_a?(preferred_record_class) }
 
       if records.length != 1
@@ -248,7 +250,7 @@ class SPF::Server
         end
       end
       if record
-        if record.SCOPES.select{|x| scope == x}.any?
+        if record.scopes.select{|x| scope == x}.any?
           # Record covers requested scope.
           records << record
         end
@@ -259,7 +261,6 @@ class SPF::Server
   end
 
   def count_dns_interactive_term(request)
-    n = 1
     dns_interactive_terms_count = request.root_request.state(:dns_interactive_terms_count, 1)
     if (@max_dns_interactive_terms and
         dns_interactive_terms_count > @max_dns_interactive_terms)
