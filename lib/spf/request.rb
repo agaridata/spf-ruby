@@ -20,11 +20,12 @@ class SPF::Request
 
   DEFAULT_LOCALPART = 'postmaster'
 
-  def initialize(options)
+  def initialize(options = {})
 
     @state            = {}
     @versions         = options[:versions]
     @scope            = options[:scope]             || :mfrom
+    @scope            = @scope.to_sym if @scope.is_a?(String)
     @authority_domain = options[:authority_domain]
     @identity         = options[:identity]
     @ip_address       = options[:ip_address]
@@ -121,7 +122,7 @@ class SPF::Request
     return (@_authority_domain or @domain)
   end
 
-  def state(field, value)
+  def state(field, value = nil)
     unless field
       raise SPF::OptionRequiredError.new('Field name required')
     end

@@ -26,6 +26,7 @@ Gem::Specification.new do |s|
     "lib/spf.rb",
     "lib/spf/error.rb",
     "lib/spf/eval.rb",
+    "lib/spf/macro_string.rb",
     "lib/spf/model.rb",
     "lib/spf/request.rb",
     "lib/spf/result.rb",

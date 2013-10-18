@@ -6,11 +6,15 @@ class SPF::Result
   attr_reader :server, :request
 
   class SPF::Result::Pass < SPF::Result
-    CODE = :pass
+    def code
+      :pass
+    end
   end
 
   class SPF::Result::Fail < SPF::Result
-    CODE = :fail
+    def code
+      :fail
+    end
 
     def authority_explanation
       if self.instance_variable_defined?(:@authority_explanation)
@@ -43,33 +47,48 @@ class SPF::Result
   end
 
   class SPF::Result::SoftFail < SPF::Result
-    CODE = :softfail
+    def code
+      :softfail
+    end
   end
 
   class SPF::Result::Neutral < SPF::Result
-    CODE = :neutral
+    def code
+      :neutral
+    end
   end
 
   class SPF::Result::NeutralByDefault < SPF::Result::Neutral
     # This is a special-case of the Neutral result that is thrown as a default
     # when "falling off" the end of the record.  See SPF::Record.eval().
     NAME = :neutral_by_default
+    def code
+      :neutral_by_default
+    end
   end
 
   class SPF::Result::None < SPF::Result
-    CODE = :none
+    def code
+      :none
+    end
   end
 
   class SPF::Result::Error < SPF::Result
-    CODE = :error
+    def code
+      :error
+    end
   end
 
   class SPF::Result::TempError < SPF::Result::Error
-    CODE = :temperror
+    def code
+      :temperror
+    end
   end
 
   class SPF::Result::PermError < SPF::Result::Error
-    CODE = :permerror
+    def code
+      :permerror
+    end
   end
 
 
@@ -104,7 +123,7 @@ class SPF::Result
     (#{ATEXT_PATTERN})+ ( \. (#{ATEXT_PATTERN})+ )*
   /x
 
-  def initialized(args = [])
+  def initialize(args = [])
     @server = args.shift if args.any?
     unless self.instance_variable_defined?(:@server)
       raise SPF::OptionRequiredError.new('SPF server object required')
@@ -149,14 +168,14 @@ class SPF::Result
     request = self.request
     local_explanation = request.state('local_explanation')
     if local_explanation
-      local_explanation = sprintf('%s (%s)', local_explanation.expand, self.text)
+      local_explanation = sprintf('%s (%s)', local_explanation.expand, @text)
     else
-      local_explanation = self.text
+      local_explanation = @text
     end
 
     # Resolve authority domains of root-request and bottom sub-requests:
     root_request = request.root_request
-    local_explanation = request == root_request ?
+    local_explanation = (request == root_request or not root_request) ?
       sprintf('%s: %s', request.authority_domain, local_explanation) :
       sprintf('%s ... %s: %s', root_request.authority_domain, request.authority_domain, local_explanation)
 
@@ -190,7 +209,7 @@ class SPF::Result
     return @received_spf_header = sprintf(
       '%s: %s (%s) %s',
       @received_spf_header_name,
-      @code,
+      self.code,
       self.local_explanation,
       info_string
     )

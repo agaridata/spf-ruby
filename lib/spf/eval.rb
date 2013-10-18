@@ -4,6 +4,11 @@ require 'resolv'
 require 'spf/model'
 require 'spf/result'
 
+class Resolv::DNS::Resource::IN::SPF < Resolv::DNS::Resource::IN::TXT
+  # resolv.rb doesn't define an SPF resource type.
+  TypeValue = 99
+end
+
 class SPF::Server
 
   attr_accessor \
@@ -66,7 +71,7 @@ class SPF::Server
 
   def result_class(name = nil)
     if name
-      return RESULT_BASE_CLASS.result_classes[name]
+      return RESULT_BASE_CLASS::RESULT_CLASSES[name]
     else
       return RESULT_BASE_CLASS
     end
@@ -86,16 +91,64 @@ class SPF::Server
     rescue SPF::Result => r
       result = r
     rescue SPF::DNSError => e
-      result = self.result_class('temperror').new(self, request, e.text)
+      result = self.result_class('temperror').new(self, request, e.message)
     rescue SPF::NoAcceptableRecordError => e
-      result = self.result_class('none'     ).new(self, request, e.text)
+      result = self.result_class('none'     ).new(self, request, e.message)
     rescue SPF::RedundantAcceptableRecordsError, SPF::SyntaxError, SPF::ProcessingLimitExceededError => e
-      result = self.result_class('permerror').new(self, request, e.text)
+      result = self.result_class(:permerror).new([self, request, e.message])
     end
     # Propagate other, unknown errors.
     # This should not happen, but if it does, it helps exposing the bug!
 
     return result
+  end
+
+  def resource_typeclass_for_rr_type(rr_type)
+    return case rr_type
+      when 'TXT'  then Resolv::DNS::Resource::IN::TXT
+      when 'SPF'  then Resolv::DNS::Resource::IN::TXT
+      when 'ANY'  then Resolv::DNS::Resource::IN::ANY
+      when 'A'    then Resolv::DNS::Resource::IN::A
+      when 'AAAA' then Resolv::DNS::Resource::IN::AAAA
+      when 'PTR'  then Resolv::DNS::Resource::IN::PTR
+      else
+        raise ArgumentError, "Uknown RR type: #{rr_type}"
+      end
+  end
+
+  # FIXME: This needs to be changed to use the Ruby resolver library properly.
+  def dns_lookup(domain, rr_type)
+    if domain.is_a?(SPF::MacroString)
+      domain = domain.expand
+      # Truncate overlong labels at 63 bytes (RFC 4408, 8.1/27)
+      domain.gsub!(/([^.]{63})[^.]+/, "#{$1}")
+      # Drop labels from the head of domain if longer than 253 bytes (RFC 4408, 8.1/25):
+      domain.sub!(/^[^.]+\.(.*)$/, "#{$1}") while domain.length > 253
+    end
+
+    rr_type = self.resource_typeclass_for_rr_type(rr_type)
+    
+    domain.sub(/^(.*?)\.?$/, $1 ? "#{$1}".downcase : '')
+
+    packet = @dns_resolver.getresources(domain, rr_type)
+
+    # Raise DNS exception unless an answer packet with RCODE 0 or 3 (NXDOMAIN)
+    # was received (thereby treating NXDOMAIN as an acceptable but empty answer packet):
+    #if @dns_resolver.errorstring =~ /^(timeout|query timed out)$/
+    #  raise SPF::DNSTimeoutError.new(
+    #    "Time-out on DNS '#{rr_type}' lookup of '#{domain}'")
+    #end
+
+    unless packet
+      raise SPF::DNSError.new(
+        "Unknown error on DNS '#{rr_type}' lookup of '#{domain}'")
+    end
+
+    #unless packet.header.rcode =~ /^(NOERROR|NXDOMAIN)$/
+    #  raise SPF::DNSError.new(
+    #    "'#{packet.header.rcode}' error on DNS '#{rr_type}' lookup of '#{domain}'")
+    #end
+    return packet
   end
 
   def select_record(request)
@@ -171,88 +224,56 @@ class SPF::Server
 
       return records[0]
     end
+  end
 
-    def get_acceptable_records_from_packet(packet, rr_type, versions, scope, domain)
+  def get_acceptable_records_from_packet(packet, rr_type, versions, scope, domain)
 
-      # Try higher record versions first.
-      # (This may be too simplistic for future revisions of SPF.)
-      versions = versions.sort { |x, y| y <=> x }
+    # Try higher record versions first.
+    # (This may be too simplistic for future revisions of SPF.)
+    versions = versions.sort { |x, y| y <=> x }
 
-      records = []
-      packet.answer.each do |rr|
-        next if rr.type != rr_type
-        text = rr.char_str_list.join('')
-        record = false
-        versions.each do |version|
-          klass = RECORD_CLASSES_BY_VERSION[version]
-          begin
-            record = klass.new_from_string(text)
-          rescue SPF::InvalidRecordVersion
-            # Ignore non-SPF and unknown-version records.
-            # Propagate other errors (including syntax errors), though.
-          end
-        end
-        if record
-          if record.SCOPES.select{|x| scope == x}.any?
-            # Record covers requested scope.
-            records << record
-          end
-          break
+    rr_type = resource_typeclass_for_rr_type(rr_type)
+    records = []
+    packet.each do |rr|
+      next unless rr.is_a?(rr_type)
+      text = rr.strings.join('')
+      record = false
+      versions.each do |version|
+        klass = RECORD_CLASSES_BY_VERSION[version]
+        begin
+          record = klass.new_from_string(text)
+        rescue SPF::InvalidRecordVersionError
+          # Ignore non-SPF and unknown-version records.
+          # Propagate other errors (including syntax errors), though.
         end
       end
-      return records
-    end
-
-    # FIXME: This needs to be changed to use the Ruby resolver library properly.
-    def dns_lookup(domain, rr_type)
-      if domain.is_a?(SPF::MacroString)
-        domain = domain.expand
-        # Truncate overlong labels at 63 bytes (RFC 4408, 8.1/27)
-        domain.gsub!(/([^.]{63})[^.]+/, "#{$1}")
-        # Drop labels from the head of domain if longer than 253 bytes (RFC 4408, 8.1/25):
-        domain.sub!(/^[^.]+\.(.*)$/, "#{$1}") while domain.length > 253
-      end
-
-      domain.sub(/^(.*?)\.?$/, $1 ? "#{$1}".downcase : '')
-
-      packet = @dns_resolver.send(domain, rr_type)
-
-      # Raise DNS exception unless an answer packet with RCODE 0 or 3 (NXDOMAIN)
-      # was received (thereby treating NXDOMAIN as an acceptable but empty answer packet):
-      if @dns_resolver.errorstring =~ /^(timeout|query timed out)$/
-        raise SPF::DNSTimeoutError.new(
-          "Time-out on DNS '#{rr_type}' lookup of '#{domain}'")
-      end
-
-      unless packet
-        raise SPF::DNSError.new(
-          "Unknown error on DNS '#{rr_type}' lookup of '#{domain}'")
-      end
-
-      unless packet.header.rcode =~ /^(NOERROR|NXDOMAIN)$/
-        raise SPF::DNSError.new(
-          "'#{packet.header.rcode}' error on DNS '#{rr_type}' lookup of '#{domain}'")
-      end
-      return packet
-    end
-
-    def count_dns_interactive_term(request)
-      n = 1
-      dns_interactive_terms_count = request.root_request.state(:dns_interactive_terms_count, 1)
-      if (@max_dns_interactive_terms and
-          dns_interactive_terms_count > @max_dns_interactive_terms)
-        raise SPF::ProcessingLimitExceeded.new(
-          "Maximum DNS-interactive terms limit (#{@max_dns_interactive_terms}) exceeded")
+      if record
+        if record.SCOPES.select{|x| scope == x}.any?
+          # Record covers requested scope.
+          records << record
+        end
+        break
       end
     end
+    return records
+  end
 
-    def count_void_dns_lookup(request)
-      void_dns_lookups_count = request.root_request.state(:void_dns_lookups_count, 1)
-      if (@max_void_dns_lookups and
-          void_dns_lookups_count > @max_void_dns_lookups)
-        raise SPF::ProcessingLimitExceeded.new(
-          "Maximum void DNS look-ups limit (#{@max_void_dns_lookups}) exceeded")
-      end
+  def count_dns_interactive_term(request)
+    n = 1
+    dns_interactive_terms_count = request.root_request.state(:dns_interactive_terms_count, 1)
+    if (@max_dns_interactive_terms and
+        dns_interactive_terms_count > @max_dns_interactive_terms)
+      raise SPF::ProcessingLimitExceeded.new(
+        "Maximum DNS-interactive terms limit (#{@max_dns_interactive_terms}) exceeded")
+    end
+  end
+
+  def count_void_dns_lookup(request)
+    void_dns_lookups_count = request.root_request.state(:void_dns_lookups_count, 1)
+    if (@max_void_dns_lookups and
+        void_dns_lookups_count > @max_void_dns_lookups)
+      raise SPF::ProcessingLimitExceeded.new(
+        "Maximum void DNS look-ups limit (#{@max_void_dns_lookups}) exceeded")
     end
   end
 end

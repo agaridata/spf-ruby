@@ -16,7 +16,7 @@ module SPF
     end
 
     def initialize(options = {})
-      super
+      super()
       @text     = options[:text] \
         or raise ArgumentError, "Missing required 'text' option"
       @server   = options[:server]

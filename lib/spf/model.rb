@@ -707,34 +707,44 @@ class SPF::Record
   }
 
   def initialize(options)
-    super(options)
-    @parse_text    = @text if not self.instance_variable_defined?(:@parse_text)
+    super()
+    @parse_text    = @text = options[:text] if not self.instance_variable_defined?(:@parse_text)
     @terms       ||= []
     @global_mods ||= {}
   end
 
-  def new_from_string(text, options)
-    record = SPF::Record.new(options)
+  def self.new_from_string(text, options = {})
+    options[:text] = text
+    record = new(options)
     record.parse
     return record
   end
 
   def parse
-    unless self.instance_variable_defined?(:@parse_text)
+    unless self.instance_variable_defined?(:@parse_text) and @parse_text
       raise SPF::NothingToParseError.new('Nothing to parse for record')
     end
-    @parse_version_tag
-    @parse_term while @parse_text.length > 0
+    self.parse_version_tag
+    self.parse_term while @parse_text.length > 0
     @parse_end
   end
 
   def parse_version_tag
+    @parse_text.sub(/^(#{self.version_tag_pattern})(?:\x20+|$)/, '')
+    unless $1
+      raise InvalidRecordVersionError.new(
+        "Not a '#{VERSION_TAG}' record: '#{@text}'")
+    end
+
+  end
+
+  def parse_term
     if (
       @parse_text.sub!(/
         ^
         (
-           #{SPF::Mech.qualifier_pattern}?
-          (#{SPF::Mech.name_pattern})
+           #{SPF::Mech::QUALIFIER_PATTERN}?
+          (#{SPF::Mech::NAME_PATTERN})
            [^\x20]*
         )
         (?: \x20+ | $ )
@@ -753,7 +763,7 @@ class SPF::Record
       @parse_text.sub!(/
         ^
         (
-          (#{SPF::Mod.name_pattern}) =
+          (#{SPF::Mod::NAME_PATTERN}) =
           [^\x20]*
         )
         (?: \x20+ | $ )
@@ -778,7 +788,7 @@ class SPF::Record
         end
       end
     else
-      raise SPF::JunkInRecord.new("Junk encountered in record '#{@text}'")
+      raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'")
     end
   end
 
@@ -799,7 +809,7 @@ class SPF::Record
     raise SPF::OptionRequiredError.new('Request object required for record evaluation')    unless request
   end
 
-  class SPF::Record::V1
+  class SPF::Record::V1 < SPF::Record
 
     MECH_CLASSES = {
       :all      => SPF::Mech::All,
@@ -821,6 +831,10 @@ class SPF::Record
     VERSION_TAG_PATTERN = / v=spf(1) (?= \x20 | $ ) /ix
     SCOPES              = [:helo, :mfrom]
 
+    def version_tag_pattern
+      / v=spf(1) (?= \x20 | $ ) /ix
+    end
+
     def initialize(options = {})
       super(options)
 
@@ -841,7 +855,7 @@ class SPF::Record
     end
   end
 
-  class SPF::Record::V2
+  class SPF::Record::V2 < SPF::Record
 
     MECH_CLASSES = {
       :all      => SPF::Mech::All,
@@ -867,16 +881,50 @@ class SPF::Record
       (?= \x20 | $ )
     /ix
 
-    def initialize(options = {})
-      # TODO: port
+    def version_tag_pattern
+      /
+        spf(2\.0)
+        \/
+        ( (?: mfrom | pra ) (?: , (?: mfrom | pra ) )* )
+        (?= \x20 | $ )
+      /ix
     end
 
-    def parse_version_tag
-      # TODO: port
+    def initialize(options = {})
+      super(options)
+      unless @parse_text
+        scopes = @scopes || {}
+        raise SPF::InvalidScopeError.new('No scopes for spf2.0 record') if scopes.empty?
+        scopes.each do |scope|
+          if scope !~ VALID_SCOPE
+            raise SPF::InvalidScopeError.new("Invalid scope '#{scope}' for spf2.0 record")
+          end
+        end
+      end
     end
 
     def version_tag
-      # TODO: port
+      return 'spf2.0' if not @scopes  # no scopes parsed
+      return 'spf2.0/' + @scopes.join(',')
+    end
+
+    def parse_version_tag
+
+      @parse_text.sub(/#{version_tag_pattern}(?:\x20+|$)/, '')
+      if $1
+        scopes = @scopes = "#{$2}".split(/,/)
+        if scopes.empty?
+          raise SPF::InvalidScopeError.new('No scopes for spf2.0 record')
+        end
+        scopes.each do |scope|
+          if scope !~ VALID_SCOPE
+            raise SPF::InvalidScopeError.new("Invalid scope '#{scope}' for spf2.0 record")
+          end
+        end
+      else
+        raise SPF::InvalidRecordVersionError.new(
+          "Not a 'spf2.0' record: '#{@text}'")
+      end
     end
   end
 end
