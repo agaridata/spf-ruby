@@ -838,7 +838,7 @@ class SPF::Record
     def initialize(options = {})
       super(options)
 
-      @scopes ||= options[scopes]
+      @scopes ||= options[:scopes]
       if @scopes and scopes.any?
         unless @scopes.length > 0
           raise SPF::InvalidScopeError.new('No scopes for v=spf1 record')
