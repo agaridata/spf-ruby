@@ -1,7 +1,7 @@
 require 'spf/model'
 require 'spf/util'
 
-class SPF::Result
+class SPF::Result < Exception
 
   attr_reader :server, :request
 
@@ -166,7 +166,7 @@ class SPF::Result
 
     # Prepare local explanation:
     request = self.request
-    local_explanation = request.state('local_explanation')
+    local_explanation = request.state(:local_explanation)
     if local_explanation
       local_explanation = sprintf('%s (%s)', local_explanation.expand, @text)
     else

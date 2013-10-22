@@ -4,8 +4,8 @@ require 'spf/error'
 
 class SPF::Request
 
-  attr_reader :scope, :identity, :domain, :localpart, :ip_address, :ip_address_v6, :helo_identity, :root_request, :versions
-  attr_accessor :record
+  attr_reader :scope, :identity, :domain, :localpart, :ip_address, :ip_address_v6, :helo_identity, :versions
+  attr_accessor :record, :opt, :root_request, :super_request
 
   VERSIONS_FOR_SCOPE = {
     :helo  => [1   ],
@@ -21,16 +21,18 @@ class SPF::Request
   DEFAULT_LOCALPART = 'postmaster'
 
   def initialize(options = {})
-
-    @state            = {}
-    @versions         = options[:versions]
-    @scope            = options[:scope]             || :mfrom
-    @scope            = @scope.to_sym if @scope.is_a?(String)
-    @authority_domain = options[:authority_domain]
-    @identity         = options[:identity]
-    @ip_address       = options[:ip_address]
-    @helo_identity    = options[:helo_identity]
-    @record           = nil
+    @opt               = options
+    @state             = {}
+    @versions          = options[:versions]
+    @scope             = options[:scope]             || :mfrom
+    @scope             = @scope.to_sym if @scope.is_a?(String)
+    @_authority_domain = options[:authority_domain]
+    @identity          = options[:identity]
+    @ip_address        = options[:ip_address]
+    @helo_identity     = options[:helo_identity]
+    @root_request      = self
+    @super_request     = self
+    @record            = nil
 
     # Scope:
     versions_for_scope = VERSIONS_FOR_SCOPE[@scope] or
@@ -112,11 +114,11 @@ class SPF::Request
     end
   end
 
-  def self.new_sub_request(super_request, options)
-    obj = super_request.new(options)
-    obj.super_request = super_request
+  def new_sub_request(options)
+    obj = self.class.new(opt.merge(options))
+    obj.super_request = self
     obj.root_request  = super_request.root_request
-    return self
+    return obj
   end
 
   def authority_domain
@@ -129,7 +131,7 @@ class SPF::Request
     end
     if value
       @state[field] = 0 unless @state[field]
-      @state[field] += value
+      @state[field] = "#{@state[field]}#{value}"
     else
       @state[field] = value
     end

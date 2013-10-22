@@ -91,9 +91,9 @@ class SPF::Server
     rescue SPF::Result => r
       result = r
     rescue SPF::DNSError => e
-      result = self.result_class('temperror').new(self, request, e.message)
+      result = self.result_class(:temperror).new(self, request, e.message)
     rescue SPF::NoAcceptableRecordError => e
-      result = self.result_class('none'     ).new(self, request, e.message)
+      result = self.result_class(:none     ).new(self, request, e.message)
     rescue SPF::RedundantAcceptableRecordsError, SPF::SyntaxError, SPF::ProcessingLimitExceededError => e
       result = self.result_class(:permerror).new([self, request, e.message])
     end
@@ -264,7 +264,7 @@ class SPF::Server
     dns_interactive_terms_count = request.root_request.state(:dns_interactive_terms_count, 1)
     if (@max_dns_interactive_terms and
         dns_interactive_terms_count > @max_dns_interactive_terms)
-      raise SPF::ProcessingLimitExceeded.new(
+      raise SPF::ProcessingLimitExceededError.new(
         "Maximum DNS-interactive terms limit (#{@max_dns_interactive_terms}) exceeded")
     end
   end

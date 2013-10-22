@@ -1,7 +1,7 @@
 require 'spf/util'
 
 module SPF
-  class MacroString
+  class MacroString < String
 
     def self.default_split_delimiters
       '.'
@@ -22,6 +22,7 @@ module SPF
       @server   = options[:server]
       @request  = options[:request]
       @expanded = nil
+      self.expand
     end
 
     attr_reader :text, :server, :request
@@ -37,7 +38,7 @@ module SPF
     def expand(context = nil)
       return @expanded if @expanded
 
-      return nil if not @text
+      return nil unless @text
 
       return @expanded = @text if not @text =~ /%/
         # Short-circuit expansion if text has no '%' characters.
@@ -45,8 +46,7 @@ module SPF
       expanded = ''
       # TODO
 
-      @expanded = expanded if @context
-      return expanded
+      return @expanded = expanded = @text
     end
 
     def to_s

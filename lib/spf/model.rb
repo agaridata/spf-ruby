@@ -3,6 +3,15 @@ require 'ip'
 require 'spf/util'
 
 
+class IP
+  def contains?(ip_address)
+    return (
+      self.to_irange.first <= ip_address.to_i and
+      self.to_irange.last  >= ip_address.to_i)
+  end
+end
+
+
 class SPF::Record
   DEFAULT_QUALIFIER    = '+';
 end
@@ -122,7 +131,7 @@ class SPF::Term
   def parse_ipv4_network(required = false)
     self.parse_ipv4_address(required)
     self.parse_ipv4_prefix_length
-    @ip_address = IP.new("#{@ip_address}/#{@ipv4_prefix_length}")
+    @ip_network = IP.new("#{@ip_address}/#{@ipv4_prefix_length}")
   end
 
   def parse_ipv6_address(required = false)
@@ -281,10 +290,10 @@ class SPF::Mech < SPF::Term
     rrs.each do |rr|
       if rr.type == 'A'
         network = IP.new("#{rr.address}/#{ipv4_prefix_length}")
-        return true if network.contains(request.ip_address)
+        return true if network.contains?(request.ip_address)
       elsif rr.type == 'AAAA'
         network = IP.new("#{rr.address}/#{ipv6_prefix_length}")
-        return true if network.contains(request.ip_address_v6)
+        return true if network.contains?(request.ip_address_v6)
       elsif rr.type == 'CNAME'
         # Ignore -- we should have gotten the A/AAAA records anyway.
       else
@@ -299,16 +308,20 @@ class SPF::Mech < SPF::Term
     explanation_template = self.explanation_template(server, request, result)
     return unless explanation_template
     begin
-      explanation = SPF::MacroString.new(
+      explanation = SPF::MacroString.new({
         :text           => explanation_template,
         :server         => server,
         :request        => request,
         :is_explanation => true
-      )
+      })
       request.state(:local_explanation, explanation)
-    rescue SPF::Exception
+    rescue SPF::Error
     rescue SPF::Result
     end
+  end
+
+  def explanation_template(server, request, result)
+    return EXPLANATION_TEMPLATES_BY_RESULT_CODE[result.code]
   end
 
 
@@ -336,7 +349,7 @@ class SPF::Mech < SPF::Term
     end
 
     def match(server, request)
-      server.count_dns_interactive_terms(request)
+      server.count_dns_interactive_term(request)
       return self.match_in_domain(server, request)
     end
 
@@ -399,12 +412,10 @@ class SPF::Mech < SPF::Term
     end
 
     def match(server, request)
-      if ip_network_v6 = @ip_network.version == 4
-        SPF::Util.ipv4_address_to_ipv6(@ip_network)
-      else
-        ip_network_v6 = @ip_network
-      end
-      return ip_network_v6.contains(request.ip_address_v6)
+      ip_network_v6 = @ip_network.is_a?(IP::V4) ?
+        SPF::Util.ipv4_address_to_ipv6(@ip_network) :
+        @ip_network
+      return ip_network_v6.contains?(request.ip_address_v6)
     end
 
   end
@@ -425,7 +436,7 @@ class SPF::Mech < SPF::Term
     end
 
     def match(server, request)
-      return self.ip_network_contains(request.ip_address_v6)
+      return @ip_network.contains?(request.ip_address_v6)
     end
 
   end
@@ -443,7 +454,7 @@ class SPF::Mech < SPF::Term
     end
 
     def match(server, request)
-      server.count_dns_interactive_terms(request)
+      server.count_dns_interactive_term(request)
 
       # Create sub-request with mutated authority domain:
       authority_domain = self.domain(server, request)
@@ -467,7 +478,7 @@ class SPF::Mech < SPF::Term
         result.is_a?(SPF::Result::None)
 
       # Propagate any other results (including {Perm,Temp}Error) as-is:
-      result.throw
+      raise result
     end
   end
 
@@ -647,6 +658,7 @@ class SPF::Mod < SPF::Term
       rescue SPF::DNSError, SPF::Result::Error
         # Ignore DNS and other errors.
       end
+      return request
     end
   end
 
@@ -666,7 +678,7 @@ class SPF::Mod < SPF::Term
     end
 
     def process(server, request, result)
-      server.count_dns_interactive_terms(request)
+      server.count_dns_interactive_term(request)
 
       # Only perform redirection if no mechanism matched (RFC 4408, 6.1/1):
       return unless result.is_a?(SPF::Result::NeutralByDefault)
@@ -726,11 +738,11 @@ class SPF::Record
   end
 
   def parse_version_tag
-    @parse_text.sub!(self.version_tag_pattern, '')
-    #@parse_text.sub(/^(#{self.version_tag_pattern})(?:\x20+|$)/, '')
+    #@parse_text.sub!(self.version_tag_pattern, '')
+    @parse_text.sub!(/^#{self.version_tag_pattern}\s+/ix, '')
     unless $1
-      raise InvalidRecordVersionError.new(
-        "Not a '#{VERSION_TAG}' record: '#{@text}'")
+      raise SPF::InvalidRecordVersionError.new(
+        "Not a '#{self.version_tag}' record: '#{@text}'")
     end
 
   end
@@ -805,6 +817,37 @@ class SPF::Record
   def eval(server, request)
     raise SPF::OptionRequiredError.new('SPF server object required for record evaluation') unless server
     raise SPF::OptionRequiredError.new('Request object required for record evaluation')    unless request
+    begin
+      @terms.each do |term|
+        if term.is_a?(SPF::Mech)
+          # Term is a mechanism.
+          mech = term
+          if mech.match(server, request)
+            result_name = RESULTS_BY_QUALIFIER[mech.qualifier]
+            result_class = server.result_class(result_name)
+            result = result_class.new([server, request, "Mechanism '#{term}' matched"])
+            mech.explain(server, request, result)
+            raise result
+          end
+        elsif term.is_a?(SPF::PositionalMod)
+          # Term is a positional modifier.
+          mod = term
+          mod.process(server, request)
+        elsif term.is_a?(SPF::UnknownMod)
+          # Term is an unknown modifier.  Ignore it (RFC 4408, 6/3).
+        else
+          # Invalid term object encountered:
+          raise SPF::UnexpectedTermObjectError.new(
+            "Unexpected term object '#{term}' encountered.")
+        end
+      end
+    rescue SPF::Result => result
+      # Process global modifiers in ascending order of precedence:
+      @global_mods.each do |global_mod|
+        global_mod.process(server, request, result)
+      end
+      raise result
+    end
   end
 
   class SPF::Record::V1 < SPF::Record
@@ -825,8 +868,6 @@ class SPF::Record
       :exp      => SPF::Mod::Exp
     }
 
-    VERSION_TAG         = 'v=spf1'
-    VERSION_TAG_PATTERN = " v=spf(1) (?= \\x20 | $ ) "
 
     def scopes
       [:helo, :mfrom]
@@ -836,12 +877,12 @@ class SPF::Record
       'v=spf1'
     end
 
-    def mech_classes
-      MECH_CLASSES
+    def version_tag_pattern
+      " v=spf(1) (?= \\x20+ | $ ) "
     end
 
-    def version_tag_pattern
-      / v=spf(1) (?: \x20+ | $ ) /ix
+    def mech_classes
+      MECH_CLASSES
     end
 
     def initialize(options = {})
@@ -883,29 +924,21 @@ class SPF::Record
     }
 
     VALID_SCOPE = /^(?: mfrom | pra )$/x
-    VERSION_TAG = 'v=spf2.0'
-    VERSION_TAG_PATTERN = "
+    def version_tag
+      'v=spf2.0'
+    end
+
+    def version_tag_pattern
+    "
       spf(2\.0)
       \/
       ( (?: mfrom | pra ) (?: , (?: mfrom | pra ) )* )
-      (?= \x20 | $ )
+      (?= \\x20 | $ )
     "
-
-    def version_tag
-      VERSION_TAG
     end
 
     def mech_classes
       MECH_CLASSES
-    end
-
-    def version_tag_pattern
-      /
-        spf(2\.0)
-        \/
-        ( (?: mfrom | pra ) (?: , (?: mfrom | pra ) )* )
-        (?: \x20 | $ )
-      /ix
     end
 
     def initialize(options = {})
@@ -928,7 +961,7 @@ class SPF::Record
 
     def parse_version_tag
 
-      @parse_text.sub!(/#{version_tag_pattern}(?:\x20+|$)/, '')
+      @parse_text.sub!(/#{version_tag_pattern}(?:\x20+|$)/ix, '')
       if $1
         scopes = @scopes = "#{$2}".split(/,/)
         if scopes.empty?
