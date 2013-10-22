@@ -207,7 +207,7 @@ class SPF::Mech < SPF::Term
     super()
     @text = options[:text]
     if not self.instance_variable_defined?(:@parse_text)
-      @parse_text = @text
+      @parse_text = @text.dup
     end
     if self.instance_variable_defined?(:@domain_spec) and
       not @domain_spec.is_a?(SPF::MacroString)
@@ -564,7 +564,7 @@ class SPF::Mod < SPF::Term
     @text        = options[:text]
     @domain_spec = options[:domain_spec]
 
-    @parse_text = @text unless @parse_text
+    @parse_text = @text.dup unless @parse_text
 
     if @domain_spec and not @domain_spec.is_a?(SPF::MacroString)
       @domain_spec = SPF::MacroString.new({:text => @domain_spec})
@@ -719,7 +719,7 @@ class SPF::Record
 
   def initialize(options)
     super()
-    @parse_text    = @text = options[:text] if not self.instance_variable_defined?(:@parse_text)
+    @parse_text    = (@text = options[:text] if not self.instance_variable_defined?(:@parse_text)).dup
     @terms       ||= []
     @global_mods ||= {}
   end

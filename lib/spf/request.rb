@@ -4,7 +4,7 @@ require 'spf/error'
 
 class SPF::Request
 
-  attr_reader :scope, :identity, :domain, :localpart, :ip_address, :ip_address_v6, :helo_identity, :versions
+  attr_reader :scope, :identity, :domain, :localpart, :ip_address, :ip_address_v6, :helo_identity, :versions, :sub_requests
   attr_accessor :record, :opt, :root_request, :super_request
 
   VERSIONS_FOR_SCOPE = {
@@ -33,6 +33,7 @@ class SPF::Request
     @root_request      = self
     @super_request     = self
     @record            = nil
+    @sub_requests      = []
 
     # Scope:
     versions_for_scope = VERSIONS_FOR_SCOPE[@scope] or
@@ -118,6 +119,7 @@ class SPF::Request
     obj = self.class.new(opt.merge(options))
     obj.super_request = self
     obj.root_request  = super_request.root_request
+    @sub_requests << obj
     return obj
   end
 
