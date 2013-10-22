@@ -129,9 +129,9 @@ class SPF::Request
     unless field
       raise SPF::OptionRequiredError.new('Field name required')
     end
-    if value
+    if value and value === Fixnum
       @state[field] = 0 unless @state[field]
-      @state[field] = "#{@state[field]}#{value}"
+      @state[field] += value
     else
       @state[field] = value
     end

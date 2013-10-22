@@ -51,7 +51,7 @@ module SPF
     unless IP::V4 === ipv4_address
       raise SPF::InvalidOptionValueError.new('IP::V4 address expected')
     end
-    return IP.new("::ffff:#{ipv4_address}/#{ipv4_address.pfxlen - 32 + 128}")
+    return IP.new("::ffff:#{ipv4_address.to_addr}/#{ipv4_address.pfxlen - 32 + 128}")
   end
 
   def self.ipv6_address_to_ipv4(ipv6_address)

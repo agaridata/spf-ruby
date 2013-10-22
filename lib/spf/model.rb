@@ -97,6 +97,7 @@ class SPF::Term
     if @parse_text.sub!(/^(#{DOMAIN_SPEC_PATTERN})/x, '')
       domain_spec = $1
       domain_spec.sub!(/^(.*?)\.?$/, $1)
+      @domain_spec = SPF::MacroString.new({:text => domain_spec})
     elsif required
       raise SPF::TermDomainSpecExpectedError.new(
         "Missing required domain-spec in '#{@text}'")
@@ -162,6 +163,8 @@ class SPF::Term
   def parse_ipv6_network(required = false)
     self.parse_ipv6_address(required)
     self.parse_ipv6_prefix_length
+    # XXX we shouldn't need to check for this.
+    @ipv6_prefix_length = self.default_ipv6_prefix_length unless @ipv6_prefix_length
     @ip_network = IP.new("#{@ip_address}/#{@ipv6_prefix_length}")
   end
 
@@ -273,7 +276,7 @@ class SPF::Mech < SPF::Term
 
   def domain(server, request)
     if self.instance_variable_defined?(:@domain_spec) and @domain_spec
-      return @domain_spec.new(server, request)
+      return @domain_spec
     end
     return request.authority_domain
   end

@@ -67,6 +67,7 @@ class SPF::Server
       DEFAULT_MAX_NAME_LOOKUPS_PER_PTR_MECH
     @max_void_dns_lookups          = options[:max_void_dns_lookups]          ||
       DEFAULT_MAX_VOID_DNS_LOOKUPS
+
   end
 
   def result_class(name = nil)
@@ -75,6 +76,10 @@ class SPF::Server
     else
       return RESULT_BASE_CLASS
     end
+  end
+
+  def throw_result(name, request, text)
+    raise self.result_class(name).new(self, request, text)
   end
 
   def process(request)

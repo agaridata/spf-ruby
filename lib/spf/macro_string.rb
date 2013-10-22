@@ -1,7 +1,7 @@
 require 'spf/util'
 
 module SPF
-  class MacroString < String
+  class MacroString
 
     def self.default_split_delimiters
       '.'
@@ -39,21 +39,19 @@ module SPF
       return @expanded if @expanded
 
       return nil unless @text
-
-      return @expanded = @text if not @text =~ /%/
+      return (@expanded = @text) unless @text =~ /%/
         # Short-circuit expansion if text has no '%' characters.
 
       expanded = ''
       # TODO
-
-      return @expanded = expanded = @text
+      return (@expanded = @text)
     end
 
     def to_s
       if valid_context(false)
         return expand
       else
-        return text
+        return @text
       end
     end
 
