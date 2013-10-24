@@ -25,7 +25,7 @@ class SPF::Request
     @state             = {}
     @versions          = options[:versions]
     @scope             = options[:scope]             || :mfrom
-    @scope             = @scope.to_sym if @scope.is_a?(String)
+    @scope             = @scope.to_sym if String === @scope
     @_authority_domain = options[:authority_domain]
     @identity          = options[:identity]
     @ip_address        = options[:ip_address]
@@ -40,14 +40,13 @@ class SPF::Request
       raise SPF::InvalidScopeError.new("Invalid scope '#{@scope}'")
 
     # Versions:
-    if self.instance_variable_defined?(:@versions)
-      if @versions.is_a?(Symbol)
+    if @versions
+      if Symbol === @versions
         # Single version specified as a symbol:
         @versions = [@versions]
-      elsif not @versions.is_a?(Array)
+      elsif not Array === @versions
         # Something other than symbol or array specified:
-        raise SPF::InvalidOptionValueError.new(
-          "'versions' option must be symbol or array")
+        raise SPF::InvalidOptionValueError.new("'versions' option must be symbol or array")
       end
 
       # All requested record versions must be supported:
@@ -91,24 +90,21 @@ class SPF::Request
       @helo_identity ||= @identity
     end
 
-    # IP address:
-    if [:helo, :mfrom, :pra].find(@scope) and not self.instance_variable_defined?(:@ip_address)
-      raise SPF::OptionRequiredError.new("Missing required 'ip_address' option")
-    end
+    return unless @ip_address
 
     # Ensure ip_address is an IP object:
-    unless @ip_address.is_a?(IP)
+    unless IP === @ip_address
       @ip_address = IP.new(@ip_address)
     end
 
     # Convert IPv4 address to IPv4-mapped IPv6 address:
 
-    if SPF::Util.ipv6_address_is_ipv4_mapped(self.ip_address)
+    if SPF::Util.ipv6_address_is_ipv4_mapped(@ip_address)
       @ip_address_v6 = @ip_address # Accept as IPv6 address as-is
       @ip_address = SPF::Util.ipv6_address_to_ipv4(@ip_address)
-    elsif @ip_address.is_a?(IP::V4)
+    elsif IP::V4 === @ip_address
       @ip_address_v6 = SPF::Util.ipv4_address_to_ipv6(@ip_address)
-    elsif @ip_address.is_a?(IP::V6)
+    elsif IP::V6 === @ip_address
       @ip_address_v6 = @ip_address
     else
       raise SPF::InvalidOptionValueError.new("Unexpected IP address version");
@@ -131,7 +127,7 @@ class SPF::Request
     unless field
       raise SPF::OptionRequiredError.new('Field name required')
     end
-    if value and value === Fixnum
+    if value and Fixnum === value
       @state[field] = 0 unless @state[field]
       @state[field] += value
     else

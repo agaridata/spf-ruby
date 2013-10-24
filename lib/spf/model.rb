@@ -210,7 +210,7 @@ class SPF::Mech < SPF::Term
       @parse_text = @text.dup
     end
     if self.instance_variable_defined?(:@domain_spec) and
-      not @domain_spec.is_a?(SPF::MacroString)
+      not SPF::MacroString === @domain_spec
       @domain_spec = SPF::MacroString.new({:text => @domain_spec})
     end
   end
@@ -351,7 +351,7 @@ class SPF::Mech < SPF::Term
       return params
     end
 
-    def match(server, request)
+    def match(server, request, want_result = true)
       server.count_dns_interactive_term(request)
       return self.match_in_domain(server, request)
     end
@@ -366,7 +366,7 @@ class SPF::Mech < SPF::Term
       # No parameters.
     end
 
-    def match(server, request)
+    def match(server, request, want_result = true)
       return true
     end
 
@@ -384,7 +384,7 @@ class SPF::Mech < SPF::Term
       return @domain_spec ? ':' + @domain_spec : nill
     end
 
-    def match(server, request)
+    def match(server, request, want_result = true)
       server.count_dns_interactive_term(request)
 
       domain = self.domain(server, request)
@@ -414,8 +414,8 @@ class SPF::Mech < SPF::Term
       return result
     end
 
-    def match(server, request)
-      ip_network_v6 = @ip_network.is_a?(IP::V4) ?
+    def match(server, request, want_result = true)
+      ip_network_v6 = IP::V4 === @ip_network ?
         SPF::Util.ipv4_address_to_ipv6(@ip_network) :
         @ip_network
       return ip_network_v6.contains?(request.ip_address_v6)
@@ -438,7 +438,7 @@ class SPF::Mech < SPF::Term
       return params
     end
 
-    def match(server, request)
+    def match(server, request, want_result = true)
       return @ip_network.contains?(request.ip_address_v6)
     end
 
@@ -456,7 +456,8 @@ class SPF::Mech < SPF::Term
       return @domain_spec ? ':' + @domain_spec : nil
     end
 
-    def match(server, request)
+    def match(server, request, want_result = true)
+
       server.count_dns_interactive_term(request)
 
       # Create sub-request with mutated authority domain:
@@ -468,17 +469,18 @@ class SPF::Mech < SPF::Term
 
       # Translate result of sub-request (RFC 4408, 5.9):
 
-      return true if
-        result.is_a?(SPF::Result::Pass)
+      return false unless want_result
+
+      return true if SPF::Result::Pass === result
 
       return false if
-        result.is_a?(SPF::Result::Fail)     or
-        result.is_a?(SPF::Result::SoftFail) or
-        result.is_a?(SPF::Result::Neutral)
+        SPF::Result::Fail     === result or
+        SPF::Result::SoftFail === result or
+        SPF::Result::Neutral  === result or
 
       server.throw_result('permerror', request,
         "Include domain '#{authority_domain}' has no applicable sender policy") if
-        result.is_a?(SPF::Result::None)
+        SPF::Result::None === result
 
       # Propagate any other results (including {Perm,Temp}Error) as-is:
       raise result
@@ -508,7 +510,7 @@ class SPF::Mech < SPF::Term
       return params
     end
 
-    def match(server, request)
+    def match(server, request, want_result = true)
 
       server.count_dns_interactive_term(request)
 
@@ -549,7 +551,7 @@ class SPF::Mech < SPF::Term
       return @domain_spec ? ':' + @domain_spec : nil
     end
 
-    def match(server, request)
+    def match(server, request, want_result = true)
       return SPF::Util.valid_domain_for_ip_address(
         server, request, request.ip_address, self.domain(server, request)) ?
         true : false
@@ -566,7 +568,7 @@ class SPF::Mod < SPF::Term
 
     @parse_text = @text.dup unless @parse_text
 
-    if @domain_spec and not @domain_spec.is_a?(SPF::MacroString)
+    if @domain_spec and not SPF::MacroString === @domain_spec
       @domain_spec = SPF::MacroString.new({:text => @domain_spec})
     end
   end
@@ -684,7 +686,7 @@ class SPF::Mod < SPF::Term
       server.count_dns_interactive_term(request)
 
       # Only perform redirection if no mechanism matched (RFC 4408, 6.1/1):
-      return unless result.is_a?(SPF::Result::NeutralByDefault)
+      return unless SPF::Result::NeutralByDefault === result
 
       # Create sub-request with mutated authorithy domain:
       authority_domain = @domain_spec.new({:server => server, :request => request})
@@ -694,7 +696,7 @@ class SPF::Mod < SPF::Term
       result = server.process(sub_request)
 
       # Translate result of sub-request (RFC 4408, 6.1/4):
-      if result.is_a?(SPF::Result::None)
+      if SPF::Result::None === result
         server.throw_result(:permerror, request,
           "Redirect domain '#{authority_domain}' has no applicable sender policy")
       end
@@ -789,13 +791,13 @@ class SPF::Record
       if mod_class
         # Known modifier.
         mod = mod_class.new_from_string(mod_text)
-        if mod.is_a?(SPF::GlobalMod)
+        if SPF::GlobalMod === mod
           # Global modifier.
           unless @global_mods[mod_name]
             raise SPF::DuplicateGlobalMod.new("Duplicate global modifier '#{mod_name}' encountered")
           end
           @global_mods[mod_name] = mod
-        elsif mod.is_a?(SPF::PositionalMod)
+        elsif SPF::PositionalMod === mod
           # Positional modifier, queue normally:
           @terms << mod
         end
@@ -822,26 +824,26 @@ class SPF::Record
     raise SPF::OptionRequiredError.new('Request object required for record evaluation')    unless request
     begin
       @terms.each do |term|
-        if term.is_a?(SPF::Mech)
+        if SPF::Mech === term
+        #if term.is_a?(SPF::Mech)
           # Term is a mechanism.
           mech = term
-          if mech.match(server, request)
+          if mech.match(server, request, request.ip_address != nil)
             result_name = RESULTS_BY_QUALIFIER[mech.qualifier]
             result_class = server.result_class(result_name)
             result = result_class.new([server, request, "Mechanism '#{term}' matched"])
             mech.explain(server, request, result)
             raise result
           end
-        elsif term.is_a?(SPF::PositionalMod)
+        elsif SPF::PositionalMod === term
           # Term is a positional modifier.
           mod = term
           mod.process(server, request)
-        elsif term.is_a?(SPF::UnknownMod)
+        elsif SPF::UnknownMod === term
           # Term is an unknown modifier.  Ignore it (RFC 4408, 6/3).
         else
           # Invalid term object encountered:
-          raise SPF::UnexpectedTermObjectError.new(
-            "Unexpected term object '#{term}' encountered.")
+          raise SPF::UnexpectedTermObjectError.new("Unexpected term object '#{term}' encountered.")
         end
       end
     rescue SPF::Result => result
@@ -877,6 +879,10 @@ class SPF::Record
     end
 
     def version_tag
+      'v=spf1'
+    end
+
+    def self.version_tag
       'v=spf1'
     end
 

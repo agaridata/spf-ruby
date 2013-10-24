@@ -1,6 +1,7 @@
 require 'ip'
 require 'resolv'
 
+require 'spf/error'
 require 'spf/model'
 require 'spf/result'
 
@@ -46,7 +47,7 @@ class SPF::Server
   def initialize(options = {})
     @default_authority_explanation = options[:default_authority_explanation] ||
       DEFAULT_DEFAULT_AUTHORITY_EXPLANATION
-    unless @default_authority_explanation.is_a?(SPF::MacroString)
+    unless SPF::MacroString === @default_authority_explanation
       @default_authority_explanation = SPF::MacroString.new({
         :text           => @default_authority_explanation,
         :server         => self,
@@ -122,7 +123,7 @@ class SPF::Server
   end
 
   def dns_lookup(domain, rr_type)
-    if domain.is_a?(SPF::MacroString)
+    if SPF::MacroString === domain
       domain = domain.expand
       # Truncate overlong labels at 63 bytes (RFC 4408, 8.1/27)
       domain.gsub!(/([^.]{63})[^.]+/, "#{$1}")
@@ -132,7 +133,7 @@ class SPF::Server
 
     rr_type = self.resource_typeclass_for_rr_type(rr_type)
     
-    domain.sub(/^(.*?)\.?$/, $1 ? "#{$1}".downcase : '')
+    domain = domain.sub(/\.$/, '').downcase
 
     packet = @dns_resolver.getresources(domain, rr_type)
 
@@ -214,13 +215,13 @@ class SPF::Server
 
       if records.empty?
         # RFC 4408, 4.5/7
-        raise SPF::NoAcceptableRecordError('No applicable sender policy available')
+        raise SPF::NoAcceptableRecordError.new('No applicable sender policy available')
       end
 
       # Discard all records but the highest acceptable version:
       preferred_record_class = records[0].class
 
-      records = records.select { |record| record.is_a?(preferred_record_class) }
+      records = records.select { |record| preferred_record_class === record }
 
       if records.length != 1
         # RFC 4408, 4.5/6
@@ -242,7 +243,7 @@ class SPF::Server
     rr_type = resource_typeclass_for_rr_type(rr_type)
     records = []
     packet.each do |rr|
-      next unless rr.is_a?(rr_type)
+      next unless rr_type === rr
       text = rr.strings.join('')
       record = false
       versions.each do |version|

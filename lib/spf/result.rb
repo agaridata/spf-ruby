@@ -140,7 +140,7 @@ class SPF::Result < Exception
 
   def klass(name=nil)
     if name
-      name = name.to_sym if name.is_a?(String)
+      name = name.to_sym if String === name
       return self.RESULT_CLASSES[name]
     else
       return name
@@ -150,7 +150,7 @@ class SPF::Result < Exception
   def isa_by_name(name)
     suspect_class = self.klass(name)
     return false unless suspect_class
-    return self.is_a?(suspect_class)
+    return suspect_class === self
   end
   
   def is_code(code)
