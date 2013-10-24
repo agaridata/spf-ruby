@@ -85,6 +85,15 @@ class SPF::Term
  ::
   "
 
+  attr_reader :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length
+
+  def initialize
+    @ip_address         = nil
+    @ip_network         = nil
+    @ipv4_prefix_length = nil
+    @ipv6_prefix_length = nil
+  end
+
   def self.new_from_string(text, options = {})
     #term = SPF::Term.new(options, {:text => text})
     options[:text] = text
