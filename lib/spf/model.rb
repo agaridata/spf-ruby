@@ -302,21 +302,18 @@ class SPF::Mech < SPF::Term
 
     ipv4_prefix_length = @ipv4_prefix_length
     ipv6_prefix_length = @ipv6_prefix_length
-    addr_rr_type       = request.ip_address.version == 4 ? 'A' : 'AAAA'
-    packet             = server.dns_lookup(domain, addr_rr_type)
-    server.count_void_dns_lookup(request) unless (rrs = packet.answer)
+    packet             = server.dns_lookup(domain, 'ANY')
+    server.count_void_dns_lookup(request) unless (rrs = packet)
 
     rrs.each do |rr|
-      if rr.type == 'A'
+      if Resolv::DNS::Resource::IN::A === rr
         network = IP.new("#{rr.address}/#{ipv4_prefix_length}")
         @ip_netblocks << network
         return true if network.contains?(request.ip_address)
-      elsif rr.type == 'AAAA'
+      elsif Resolv::DNS::Resource::IN::AAAA === rr
         network = IP.new("#{rr.address}/#{ipv6_prefix_length}")
         @ip_netblocks << network
         return true if network.contains?(request.ip_address_v6)
-      elsif rr.type == 'CNAME'
-        # Ignore -- we should have gotten the A/AAAA records anyway.
       else
         # Unexpected RR type.
         # TODO: Generate debug info or ignore silently.
@@ -358,13 +355,13 @@ class SPF::Mech < SPF::Term
     def params
       params = ''
       if @domain_spec
-        params += ':' + @domain_spec if @domain_spec
+        params += ':' + @domain_spec.to_s if @domain_spec
       end
       if @ipv4_prefix_length and @ipv4_prefix_length != self.default_ipv4_prefix_length
-        params += '/' + @ipv4_prefix_length
+        params += '/' + @ipv4_prefix_length.to_s
       end
       if @ipv6_prefix_length and @ipv6_prefix_length != DEFAULT_IPV6_PREFIX_LENGTH
-        params += '//' + @ipv6_prefix_length
+        params += '//' + @ipv6_prefix_length.to_s
       end
       return params
     end
@@ -858,7 +855,7 @@ class SPF::Record
       # Looks like a modifier:
       mod_text  = $1
       mod_name  = $2.downcase
-      mod_class = MOD_CLASSES[mod_name]
+      mod_class = self.class::MOD_CLASSES[mod_name]
       if mod_class
         # Known modifier.
         term = mod = mod_class.new_from_string(mod_text)
