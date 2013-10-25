@@ -791,6 +791,7 @@ class SPF::Record
 
   def ip_netblocks
     @ip_netblocks.flatten!
+    return @ip_netblocks
   end
 
   def parse
