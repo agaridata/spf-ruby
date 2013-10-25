@@ -400,6 +400,8 @@ class SPF::Mech < SPF::Term
       
     def parse_params
       self.parse_domain_spec(true)
+      # Other method of denoting "potentially ~infinite" netblocks?
+      @ip_netblocks << nil
     end
 
     def params
@@ -409,8 +411,6 @@ class SPF::Mech < SPF::Term
     def match(server, request, want_result = true)
       server.count_dns_interactive_term(request)
 
-      # Other method of denoting "potentially ~infinite" netblocks?
-      @ip_netblocks << nil
       domain = self.domain(server, request)
       packet = server.dns_lookup(domain, 'A')
       rrs = (packet.answer or server.count_void_dns_lookup(request))
@@ -429,6 +429,7 @@ class SPF::Mech < SPF::Term
 
     def parse_params
       self.parse_ipv4_network(true)
+      @ip_netblocks << @ip_network
     end
 
     def params
@@ -443,7 +444,6 @@ class SPF::Mech < SPF::Term
       ip_network_v6 = IP::V4 === @ip_network ?
         SPF::Util.ipv4_address_to_ipv6(@ip_network) :
         @ip_network
-      @ip_netblocks << @ip_network
       return ip_network_v6.contains?(request.ip_address_v6)
     end
 
@@ -455,6 +455,7 @@ class SPF::Mech < SPF::Term
 
     def parse_params
       self.parse_ipv6_network(true)
+      @ip_netblocks << @ip_network
     end
 
     def params
@@ -465,7 +466,6 @@ class SPF::Mech < SPF::Term
     end
 
     def match(server, request, want_result = true)
-      @ip_netblocks << @ip_network
       return @ip_network.contains?(request.ip_address_v6)
     end
 
@@ -474,8 +474,6 @@ class SPF::Mech < SPF::Term
   class SPF::Mech::Include < SPF::Mech
 
     NAME = 'include'
-
-    attr_accessor :nested_record
 
     def intitialize(options = {})
       super(options)
@@ -501,8 +499,6 @@ class SPF::Mech < SPF::Term
       # Process sub-request:
       result = server.process(sub_request)
 
-      @nested_record = sub_request.record
-
       # Translate result of sub-request (RFC 4408, 5.9):
 
       return false unless want_result
@@ -521,6 +517,14 @@ class SPF::Mech < SPF::Term
       # Propagate any other results (including {Perm,Temp}Error) as-is:
       raise result
     end
+
+    def nested_record(server, request)
+      return @nested_record if @nested_record
+      authority_domain = self.domain(server, request)
+      sub_request = request.new_sub_request({:authority_domain => authority_domain})
+      return @nested_record = server.select_record(sub_request)
+    end
+
   end
 
   class SPF::Mech::MX < SPF::Mech
@@ -705,16 +709,16 @@ class SPF::Mod < SPF::Term
 
   class SPF::Mod::Redirect < SPF::GlobalMod
 
-    attr_reader :domain_spec, :included_record
+    attr_reader :domain_spec
 
     NAME       = 'redirect'
     PRECEDENCE = 0.8
 
-    def initialize(options = {})
+    def init(options = {})
       super(options)
       @nested_record = nil
     end
-    
+
     def parse_params
       self.parse_domain_spec(true)
     end
@@ -747,12 +751,20 @@ class SPF::Mod < SPF::Term
       # Propagate any other results as-is:
       result.throw
     end
+
+    def nested_record(server, request)
+      return @nested_record if @nested_record
+      server.count_dns_interactive_term(request)
+      authority_domain = self.domain(server, request)
+      sub_request = request.new_sub_request({:authority_domain => authority_domain})
+      return @nested_record = server.select_record(sub_request)
+    end
   end
 end
 
 class SPF::Record
 
-  attr_reader :terms, :text, :errors, :ip_netblocks
+  attr_reader :terms, :text, :errors
 
   RESULTS_BY_QUALIFIER = {
     ''  => :pass,
@@ -779,6 +791,10 @@ class SPF::Record
     return record
   end
 
+  def ip_netblocks
+    @ip_netblocks.flatten!
+  end
+
   def parse
     unless self.instance_variable_defined?(:@parse_text) and @parse_text
       raise SPF::NothingToParseError.new('Nothing to parse for record')
@@ -793,9 +809,7 @@ class SPF::Record
         @errors     << e
         raise if @raise_exceptions
       end
-      @ip_netblocks << term.ip_netblocks if term
     end
-    @ip_netblocks.flatten!
     #self.parse_end
   end
 
@@ -830,6 +844,7 @@ class SPF::Record
         raise SPF::InvalidMech.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
       end
       term = mech = mech_class.new_from_string(mech_text)
+      @ip_netblocks << mech.ip_netblocks
       @terms << mech
     elsif (
       @parse_text.sub!(/
@@ -877,7 +892,7 @@ class SPF::Record
     return [version_tag, @terms, @global_mods].join(' ')
   end
 
-  def eval(server, request)
+  def eval(server, request, want_result = true)
     raise SPF::OptionRequiredError.new('SPF server object required for record evaluation') unless server
     raise SPF::OptionRequiredError.new('Request object required for record evaluation')    unless request
     begin
@@ -890,7 +905,7 @@ class SPF::Record
             result_class = server.result_class(result_name)
             result = result_class.new([server, request, "Mechanism '#{term}' matched"])
             mech.explain(server, request, result)
-            raise result
+            raise result if want_result
           end
         elsif SPF::PositionalMod === term
           # Term is a positional modifier.
@@ -908,7 +923,7 @@ class SPF::Record
       @global_mods.each do |global_mod|
         global_mod.process(server, request, result)
       end
-      raise result
+      raise result if want_result
     end
   end
 
