@@ -166,8 +166,8 @@ class SPF::Term
       unless bits and bits >= 0 and bits <= 128 and $1 !~ /^0./
         raise SPF::TermIPv6PrefixLengthExpectedError.new(
           "Invalid IPv6 prefix length encountered in '#{@text}'")
-        @ipv6_prefix_length = bits
       end
+      @ipv6_prefix_length = bits
     elsif required
       raise SPF::TermIPvPrefixLengthExpected.new(
         "Missing required IPv6 prefix length in '#{@text}'")
@@ -179,8 +179,6 @@ class SPF::Term
   def parse_ipv6_network(required = false)
     self.parse_ipv6_address(required)
     self.parse_ipv6_prefix_length
-    # XXX we shouldn't need to check for this.
-    @ipv6_prefix_length = self.default_ipv6_prefix_length unless @ipv6_prefix_length
     @ip_network = IP.new("#{@ip_address}/#{@ipv6_prefix_length}")
   end
 
