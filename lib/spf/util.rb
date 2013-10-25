@@ -45,6 +45,8 @@ module SPF
 
   def self.hostname
     return @hostname ||= Socket.gethostbyname(Socket.gethostname).first
+  rescue SocketError
+    return @hostname ||= Socket.gethostname
   end
 
   def self.ipv4_address_to_ipv6(ipv4_address)
