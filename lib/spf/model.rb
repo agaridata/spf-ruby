@@ -86,12 +86,19 @@ class SPF::Term
   "
 
   attr_reader :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length
+  attr_accessor :errors
 
-  def initialize
+  def initialize(options = {})
     @ip_address         = nil
     @ip_network         = nil
     @ipv4_prefix_length = nil
     @ipv6_prefix_length = nil
+    @errors             = []
+  end
+
+  def error(exception)
+    @errors << exception
+    raise exception
   end
 
   def self.new_from_string(text, options = {})
@@ -118,7 +125,7 @@ class SPF::Term
       @ip_address = $1
     elsif required
       raise SPF::TermIPv4AddressExpectedError.new(
-        "Missing required IPv4 address in '#{@text}'");
+        "Missing required IPv4 address in '#{@text}'")
     end
   end
 
@@ -198,6 +205,8 @@ end
 
 class SPF::Mech < SPF::Term
 
+  attr_reader :ip_netblocks, :errors
+
   DEFAULT_QUALIFIER          = SPF::Record::DEFAULT_QUALIFIER
   def default_ipv4_prefix_length; 32;   end
   def default_ipv6_prefix_length; 128;  end
@@ -213,7 +222,10 @@ class SPF::Mech < SPF::Term
   }
 
   def initialize(options)
-    super()
+    super(options)
+
+    @ip_netblocks = []
+
     @text = options[:text]
     if not self.instance_variable_defined?(:@parse_text)
       @parse_text = @text.dup
@@ -239,7 +251,7 @@ class SPF::Mech < SPF::Term
       @qualifier = $1 or DEFAULT_QUALIFIER
     else
       raise SPF::InvalidMechQualifierError.new(
-        "Invalid qualifier encountered in '#{@text}'")
+          "Invalid qualifier encountered in '#{@text}'")
     end
   end
 
@@ -247,8 +259,7 @@ class SPF::Mech < SPF::Term
     if @parse_text.sub!(/^ (#{NAME_PATTERN}) (?: : (?=.) )? /x, '')
       @name = $1
     else
-      raise SPF::InvalidMech.new(
-        "Unexpected mechanism encountered in '#{@text}'")
+      raise SPF::InvalidMech.new("Unexpected mechanism encountered in '#{@text}'")
     end
   end
 
@@ -302,9 +313,11 @@ class SPF::Mech < SPF::Term
     rrs.each do |rr|
       if rr.type == 'A'
         network = IP.new("#{rr.address}/#{ipv4_prefix_length}")
+        @ip_netblocks << network
         return true if network.contains?(request.ip_address)
       elsif rr.type == 'AAAA'
         network = IP.new("#{rr.address}/#{ipv6_prefix_length}")
+        @ip_netblocks << network
         return true if network.contains?(request.ip_address_v6)
       elsif rr.type == 'CNAME'
         # Ignore -- we should have gotten the A/AAAA records anyway.
@@ -339,7 +352,7 @@ class SPF::Mech < SPF::Term
 
   class SPF::Mech::A < SPF::Mech
 
-    NAME         = 'a'
+    NAME = 'a'
 
     def parse_params
       self.parse_domain_spec
@@ -369,7 +382,7 @@ class SPF::Mech < SPF::Term
 
   class SPF::Mech::All < SPF::Mech
 
-    NAME         = 'all'
+    NAME = 'all'
 
     def parse_params
       # No parameters.
@@ -383,7 +396,7 @@ class SPF::Mech < SPF::Term
 
   class SPF::Mech::Exists < SPF::Mech
 
-    NAME         = 'exists'
+    NAME = 'exists'
       
     def parse_params
       self.parse_domain_spec(true)
@@ -396,12 +409,15 @@ class SPF::Mech < SPF::Term
     def match(server, request, want_result = true)
       server.count_dns_interactive_term(request)
 
+      # Other method of denoting "potentially ~infinite" netblocks?
+      @ip_netblocks << nil
       domain = self.domain(server, request)
       packet = server.dns_lookup(domain, 'A')
       rrs = (packet.answer or server.count_void_dns_lookup(request))
       rrs.each do |rr|
         return true if rr.type == 'A'
       end
+
       return false
     end
 
@@ -409,7 +425,7 @@ class SPF::Mech < SPF::Term
 
   class SPF::Mech::IP4 < SPF::Mech
 
-    NAME         = 'ip4'
+    NAME = 'ip4'
 
     def parse_params
       self.parse_ipv4_network(true)
@@ -427,6 +443,7 @@ class SPF::Mech < SPF::Term
       ip_network_v6 = IP::V4 === @ip_network ?
         SPF::Util.ipv4_address_to_ipv6(@ip_network) :
         @ip_network
+      @ip_netblocks << @ip_network
       return ip_network_v6.contains?(request.ip_address_v6)
     end
 
@@ -434,7 +451,7 @@ class SPF::Mech < SPF::Term
 
   class SPF::Mech::IP6 < SPF::Mech
 
-    NAME         = 'ip6'
+    NAME = 'ip6'
 
     def parse_params
       self.parse_ipv6_network(true)
@@ -448,6 +465,7 @@ class SPF::Mech < SPF::Term
     end
 
     def match(server, request, want_result = true)
+      @ip_netblocks << @ip_network
       return @ip_network.contains?(request.ip_address_v6)
     end
 
@@ -455,7 +473,14 @@ class SPF::Mech < SPF::Term
 
   class SPF::Mech::Include < SPF::Mech
 
-    NAME         = 'include'
+    NAME = 'include'
+
+    attr_accessor :nested_record
+
+    def intitialize(options = {})
+      super(options)
+      @nested_record = nil
+    end
 
     def parse_params
       self.parse_domain_spec(true)
@@ -475,6 +500,8 @@ class SPF::Mech < SPF::Term
 
       # Process sub-request:
       result = server.process(sub_request)
+
+      @nested_record = sub_request.record
 
       # Translate result of sub-request (RFC 4408, 5.9):
 
@@ -498,7 +525,7 @@ class SPF::Mech < SPF::Term
 
   class SPF::Mech::MX < SPF::Mech
     
-    NAME         = 'mx'
+    NAME = 'mx'
 
     def parse_params
       self.parse_domain_spec
@@ -550,7 +577,7 @@ class SPF::Mech < SPF::Term
   end
 
   class SPF::Mech::PTR < SPF::Mech
-    NAME         = 'ptr'
+    NAME = 'ptr'
 
     def parse_params
       self.parse_domain_spec
@@ -678,11 +705,16 @@ class SPF::Mod < SPF::Term
 
   class SPF::Mod::Redirect < SPF::GlobalMod
 
-    attr_reader :domain_spec
+    attr_reader :domain_spec, :included_record
 
-    NAME          = 'redirect'
-    PRECEDENCE    = 0.8
+    NAME       = 'redirect'
+    PRECEDENCE = 0.8
 
+    def initialize(options = {})
+      super(options)
+      @nested_record = nil
+    end
+    
     def parse_params
       self.parse_domain_spec(true)
     end
@@ -704,6 +736,8 @@ class SPF::Mod < SPF::Term
       # Process sub-request:
       result = server.process(sub_request)
 
+      @nested_record = sub_request.record
+
       # Translate result of sub-request (RFC 4408, 6.1/4):
       if SPF::Result::None === result
         server.throw_result(:permerror, request,
@@ -718,7 +752,7 @@ end
 
 class SPF::Record
 
-  attr_reader :terms, :text
+  attr_reader :terms, :text, :errors, :ip_netblocks
 
   RESULTS_BY_QUALIFIER = {
     ''  => :pass,
@@ -730,9 +764,12 @@ class SPF::Record
 
   def initialize(options)
     super()
-    @parse_text    = (@text = options[:text] if not self.instance_variable_defined?(:@parse_text)).dup
-    @terms       ||= []
-    @global_mods ||= {}
+    @parse_text       = (@text = options[:text] if not self.instance_variable_defined?(:@parse_text)).dup
+    @terms          ||= []
+    @global_mods    ||= {}
+    @errors           = []
+    @ip_netblocks     = []
+    @raise_exceptions = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
   end
 
   def self.new_from_string(text, options = {})
@@ -747,7 +784,18 @@ class SPF::Record
       raise SPF::NothingToParseError.new('Nothing to parse for record')
     end
     self.parse_version_tag
-    self.parse_term while @parse_text.length > 0
+    while @parse_text.length > 0
+      term = nil
+      begin
+        term = self.parse_term
+      rescue SPF::Error => e
+        term.errors << e if term
+        @errors     << e
+        raise if @raise_exceptions
+      end
+      @ip_netblocks << term.ip_netblocks if term
+    end
+    @ip_netblocks.flatten!
     #self.parse_end
   end
 
@@ -772,7 +820,7 @@ class SPF::Record
       (?: \x20+ | $ )
     /x
 
-
+    term = nil
     if @parse_text.sub!(regex, '') and $&
       # Looks like a mechanism:
       mech_text  = $1
@@ -781,7 +829,7 @@ class SPF::Record
       unless mech_class
         raise SPF::InvalidMech.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
       end
-      mech = mech_class.new_from_string(mech_text)
+      term = mech = mech_class.new_from_string(mech_text)
       @terms << mech
     elsif (
       @parse_text.sub!(/
@@ -799,7 +847,7 @@ class SPF::Record
       mod_class = MOD_CLASSES[mod_name]
       if mod_class
         # Known modifier.
-        mod = mod_class.new_from_string(mod_text)
+        term = mod = mod_class.new_from_string(mod_text)
         if SPF::GlobalMod === mod
           # Global modifier.
           unless @global_mods[mod_name]
@@ -814,6 +862,7 @@ class SPF::Record
     else
       raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'")
     end
+    return term
   end
 
   def global_mods
@@ -834,7 +883,6 @@ class SPF::Record
     begin
       @terms.each do |term|
         if SPF::Mech === term
-        #if term.is_a?(SPF::Mech)
           # Term is a mechanism.
           mech = term
           if mech.match(server, request, request.ip_address != nil)

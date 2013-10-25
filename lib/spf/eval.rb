@@ -69,6 +69,8 @@ class SPF::Server
     @max_void_dns_lookups          = options[:max_void_dns_lookups]          ||
       DEFAULT_MAX_VOID_DNS_LOOKUPS
 
+    @raise_exceptions = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
+
   end
 
   def result_class(name = nil)
@@ -249,7 +251,7 @@ class SPF::Server
       versions.each do |version|
         klass = RECORD_CLASSES_BY_VERSION[version]
         begin
-          record = klass.new_from_string(text)
+          record = klass.new_from_string(text, {:raise_exceptions => @raise_exceptions})
         rescue SPF::InvalidRecordVersionError
           # Ignore non-SPF and unknown-version records.
           # Propagate other errors (including syntax errors), though.
