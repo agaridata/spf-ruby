@@ -86,9 +86,9 @@ class SPF::Server
   end
 
   def process(request)
-    request.state(:authority_explanation,      nil)
-    request.state(:dns_interactive_term_count, 0)
-    request.state(:void_dns_lookups_count,     0)
+    request.state(:authority_explanation,       nil)
+    request.state(:dns_interactive_terms_count, 0)
+    request.state(:void_dns_lookups_count,      0)
 
     result = nil
 
@@ -275,6 +275,7 @@ class SPF::Server
       raise SPF::ProcessingLimitExceededError.new(
         "Maximum DNS-interactive terms limit (#{@max_dns_interactive_terms}) exceeded")
     end
+    return dns_interactive_terms_count
   end
 
   def count_void_dns_lookup(request)
@@ -284,6 +285,7 @@ class SPF::Server
       raise SPF::ProcessingLimitExceeded.new(
         "Maximum void DNS look-ups limit (#{@max_void_dns_lookups}) exceeded")
     end
+    return void_dns_lookups_count
   end
 end
 

@@ -85,7 +85,7 @@ class SPF::Term
  ::
   "
 
-  attr_reader :errors, :ip_netblocks, :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length
+  attr_reader :errors, :ip_netblocks, :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length, :domain_spec
 
   def initialize(options = {})
     @ip_address         = nil
@@ -814,7 +814,6 @@ class SPF::Record
       raise SPF::InvalidRecordVersionError.new(
         "Not a '#{self.version_tag}' record: '#{@text}'")
     end
-
   end
 
   def parse_term
@@ -868,6 +867,7 @@ class SPF::Record
           @terms << mod
         end
       end
+
     else
       raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'")
     end
