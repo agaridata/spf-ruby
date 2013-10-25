@@ -85,8 +85,7 @@ class SPF::Term
  ::
   "
 
-  attr_reader :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length
-  attr_accessor :errors
+  attr_reader :errors, :ip_netblocks, :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length
 
   def initialize(options = {})
     @ip_address         = nil
@@ -94,6 +93,7 @@ class SPF::Term
     @ipv4_prefix_length = nil
     @ipv6_prefix_length = nil
     @errors             = []
+    @ip_netblocks       = []
   end
 
   def error(exception)
@@ -205,8 +205,6 @@ end
 
 class SPF::Mech < SPF::Term
 
-  attr_reader :ip_netblocks, :errors
-
   DEFAULT_QUALIFIER          = SPF::Record::DEFAULT_QUALIFIER
   def default_ipv4_prefix_length; 32;   end
   def default_ipv6_prefix_length; 128;  end
@@ -223,8 +221,6 @@ class SPF::Mech < SPF::Term
 
   def initialize(options)
     super(options)
-
-    @ip_netblocks = []
 
     @text = options[:text]
     if not self.instance_variable_defined?(:@parse_text)
@@ -602,6 +598,8 @@ end
 class SPF::Mod < SPF::Term
 
   def initialize(options = {})
+    super
+
     @parse_text  = options[:parse_text]
     @text        = options[:text]
     @domain_spec = options[:domain_spec]
