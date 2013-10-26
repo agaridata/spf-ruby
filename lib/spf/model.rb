@@ -191,6 +191,13 @@ class SPF::Term
     end
   end
 
+  def domain(server, request)
+    if self.instance_variable_defined?(:@domain_spec) and @domain_spec
+      return @domain_spec
+    end
+    return request.authority_domain
+  end
+
   def text
     if self.instance_variable_defined?(:@text)
       return @text
@@ -257,7 +264,7 @@ class SPF::Mech < SPF::Term
     end
   end
 
-  def parse_params
+  def parse_params(required = true)
     # Parse generic string of parameters text (should be overridden in sub-classes):
     if @parse_text.sub!(/^(.*)/, '')
       @params_text = $1
@@ -288,18 +295,11 @@ class SPF::Mech < SPF::Term
     )
   end
 
-  def domain(server, request)
-    if self.instance_variable_defined?(:@domain_spec) and @domain_spec
-      return @domain_spec
-    end
-    return request.authority_domain
-  end
-
   def match_in_domain(server, request, domain)
     domain = self.domain(server, request) unless domain
 
-    ipv4_prefix_length = @ipv4_prefix_length
-    ipv6_prefix_length = @ipv6_prefix_length
+    ipv4_prefix_length = @ipv4_prefix_length || self.default_ipv4_prefix_length
+    ipv6_prefix_length = @ipv6_prefix_length || self.default_ipv6_prefix_length
     packet             = server.dns_lookup(domain, 'ANY')
     server.count_void_dns_lookup(request) unless (rrs = packet)
 
@@ -345,7 +345,7 @@ class SPF::Mech < SPF::Term
 
     NAME = 'a'
 
-    def parse_params
+    def parse_params(required = true)
       self.parse_domain_spec
       self.parse_ipv4_ipv6_prefix_lengths
     end
@@ -375,7 +375,7 @@ class SPF::Mech < SPF::Term
 
     NAME = 'all'
 
-    def parse_params
+    def parse_params(required = true)
       # No parameters.
     end
 
@@ -389,8 +389,8 @@ class SPF::Mech < SPF::Term
 
     NAME = 'exists'
       
-    def parse_params
-      self.parse_domain_spec(true)
+    def parse_params(required = true)
+      self.parse_domain_spec(required)
       # Other method of denoting "potentially ~infinite" netblocks?
       @ip_netblocks << nil
     end
@@ -418,8 +418,8 @@ class SPF::Mech < SPF::Term
 
     NAME = 'ip4'
 
-    def parse_params
-      self.parse_ipv4_network(true)
+    def parse_params(required = true)
+      self.parse_ipv4_network(required)
       @ip_netblocks << @ip_network
     end
 
@@ -444,8 +444,8 @@ class SPF::Mech < SPF::Term
 
     NAME = 'ip6'
 
-    def parse_params
-      self.parse_ipv6_network(true)
+    def parse_params(required = true)
+      self.parse_ipv6_network(required)
       @ip_netblocks << @ip_network
     end
 
@@ -471,8 +471,8 @@ class SPF::Mech < SPF::Term
       @nested_record = nil
     end
 
-    def parse_params
-      self.parse_domain_spec(true)
+    def parse_params(required = true)
+      self.parse_domain_spec(required)
     end
 
     def params
@@ -522,7 +522,7 @@ class SPF::Mech < SPF::Term
     
     NAME = 'mx'
 
-    def parse_params
+    def parse_params(required = true)
       self.parse_domain_spec
       self.parse_ipv4_ipv6_prefix_lengths
     end
@@ -574,7 +574,7 @@ class SPF::Mech < SPF::Term
   class SPF::Mech::PTR < SPF::Mech
     NAME = 'ptr'
 
-    def parse_params
+    def parse_params(required = true)
       self.parse_domain_spec
     end
 
@@ -614,7 +614,7 @@ class SPF::Mod < SPF::Term
   end
 
   def parse_name
-    @parse_text.sub!(/^(#{NAME})=/i, '')
+    @parse_text.sub!(/^(#{self.class::NAME})=/i, '')
     if $1
       @name = $1
     else
@@ -662,11 +662,11 @@ class SPF::Mod < SPF::Term
 
     attr_reader :domain_spec
 
-    NAME          = 'exp'
-    PRECEDENCE    = 0.2
+    NAME       = 'exp'
+    PRECEDENCE = 0.2
 
-    def parse_params
-      self.parse_domain_spec(true)
+    def parse_params(required = true)
+      self.parse_domain_spec(required)
     end
 
     def params
@@ -712,8 +712,8 @@ class SPF::Mod < SPF::Term
       @nested_record = nil
     end
 
-    def parse_params
-      self.parse_domain_spec(true)
+    def parse_params(required = true)
+      self.parse_domain_spec(required)
     end
 
     def params
@@ -852,13 +852,13 @@ class SPF::Record
       # Looks like a modifier:
       mod_text  = $1
       mod_name  = $2.downcase
-      mod_class = self.class::MOD_CLASSES[mod_name]
+      mod_class = self.class::MOD_CLASSES[mod_name.to_sym]
       if mod_class
         # Known modifier.
         term = mod = mod_class.new_from_string(mod_text)
         if SPF::GlobalMod === mod
           # Global modifier.
-          unless @global_mods[mod_name]
+          if @global_mods[mod_name]
             raise SPF::DuplicateGlobalMod.new("Duplicate global modifier '#{mod_name}' encountered")
           end
           @global_mods[mod_name] = mod
