@@ -424,9 +424,9 @@ class SPF::Mech < SPF::Term
     end
 
     def params
-      result = @ip_network.addr
-      if @ip_network.masklen != @default_ipv4_prefix_length
-        result += "/#{@ip_network.masklen}"
+      result = @ip_network.to_addr
+      if @ip_network.pfxlen != @default_ipv4_prefix_length
+        result += "/#{@ip_network.pfxlen}"
       end
       return result
     end
@@ -451,8 +451,8 @@ class SPF::Mech < SPF::Term
 
     def params
       params =  ':' + @ip_network.short
-      params += '/' + @ip_network.masklen if
-        @ip_network.masklen != DEFAULT_IPV6_PREFIX_LENGTH
+      params += '/' + @ip_network.pfxlen if
+        @ip_network.pfxlen != DEFAULT_IPV6_PREFIX_LENGTH
       return params
     end
 
