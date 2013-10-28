@@ -547,7 +547,7 @@ class SPF::Mech < SPF::Term
 
       target_domain = self.domain(server, request)
       mx_packet     = server.dns_lookup(target_domain, 'MX')
-      mx_rrs        = (mx_packet.answer or server.count_void_dns_lookup(request))
+      mx_rrs        = (mx_packet[0].answer or server.count_void_dns_lookup(request))
 
       # Respect the MX mechanism lookups limit (RFC 4408, 5.4/3/4):
       if server.max_name_lookups_per_mx_mech
@@ -802,6 +802,7 @@ class SPF::Record
         term.errors << e if term
         @errors     << e
         raise if @raise_exceptions
+        return if SPF::JunkInRecordError === e
       end
     end
     #self.parse_end

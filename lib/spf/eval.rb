@@ -119,6 +119,7 @@ class SPF::Server
       when 'A'    then Resolv::DNS::Resource::IN::A
       when 'AAAA' then Resolv::DNS::Resource::IN::AAAA
       when 'PTR'  then Resolv::DNS::Resource::IN::PTR
+      when 'MX'   then Resolv::DNS::Resource::IN::MX
       else
         raise ArgumentError, "Uknown RR type: #{rr_type}"
       end
