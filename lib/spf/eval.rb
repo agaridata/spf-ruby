@@ -99,9 +99,9 @@ class SPF::Server
     rescue SPF::Result => r
       result = r
     rescue SPF::DNSError => e
-      result = self.result_class(:temperror).new(self, request, e.message)
+      result = self.result_class(:temperror).new([self, request, e.message])
     rescue SPF::NoAcceptableRecordError => e
-      result = self.result_class(:none     ).new(self, request, e.message)
+      result = self.result_class(:none     ).new([self, request, e.message])
     rescue SPF::RedundantAcceptableRecordsError, SPF::SyntaxError, SPF::ProcessingLimitExceededError => e
       result = self.result_class(:permerror).new([self, request, e.message])
     end
@@ -253,7 +253,7 @@ class SPF::Server
         klass = RECORD_CLASSES_BY_VERSION[version]
         begin
           record = klass.new_from_string(text, {:raise_exceptions => @raise_exceptions})
-        rescue SPF::InvalidRecordVersionError
+        rescue SPF::InvalidRecordVersionError => error
           # Ignore non-SPF and unknown-version records.
           # Propagate other errors (including syntax errors), though.
         end

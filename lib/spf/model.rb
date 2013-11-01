@@ -94,11 +94,12 @@ class SPF::Term
     @ipv6_prefix_length = nil
     @errors             = []
     @ip_netblocks       = []
+    @raise_exceptions   = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
   end
 
   def error(exception)
+    raise exception if @raise_exceptions
     @errors << exception
-    raise exception
   end
 
   def self.new_from_string(text, options = {})
@@ -115,8 +116,8 @@ class SPF::Term
       domain_spec.sub!(/^(.*?)\.?$/, $1)
       @domain_spec = SPF::MacroString.new({:text => domain_spec})
     elsif required
-      raise SPF::TermDomainSpecExpectedError.new(
-        "Missing required domain-spec in '#{@text}'")
+      error(SPF::TermDomainSpecExpectedError.new(
+        "Missing required domain-spec in '#{@text}'"))
     end
   end
 
@@ -124,8 +125,8 @@ class SPF::Term
     if @parse_text.sub!(/^(#{IPV4_ADDRESS_PATTERN})/x, '')
       @ip_address = $1
     elsif required
-      raise SPF::TermIPv4AddressExpectedError.new(
-        "Missing required IPv4 address in '#{@text}'")
+      error(SPF::TermIPv4AddressExpectedError.new(
+        "Missing or invalid required IPv4 address in '#{@text}'"))
     end
   end
 
@@ -133,13 +134,15 @@ class SPF::Term
     if @parse_text.sub!(/^\/(\d+)/, '')
       bits = $1.to_i
       unless bits and bits >= 0 and bits <= 32 and $1 !~ /^0./
-        raise SPF::TermIPv4PrefixLengthExpected.new(
-          "Invalid IPv4 prefix length encountered in '#{@text}'")
+        error(SPF::TermIPv4PrefixLengthExpected.new(
+          "Invalid IPv4 prefix length encountered in '#{@text}'"))
+        return
       end
       @ipv4_prefix_length = bits
     elsif required
-      raise SPF::TermIPv4PrefixLengthExpected.new(
-        "Missing required IPv4 prefix length in '#{@text}")
+      error(SPF::TermIPv4PrefixLengthExpected.new(
+        "Missing required IPv4 prefix length in '#{@text}"))
+      return
     else
       @ipv4_prefix_length = self.default_ipv4_prefix_length
     end
@@ -148,15 +151,15 @@ class SPF::Term
   def parse_ipv4_network(required = false)
     self.parse_ipv4_address(required)
     self.parse_ipv4_prefix_length
-    @ip_network = IP.new("#{@ip_address}/#{@ipv4_prefix_length}")
+    @ip_network = IP.new("#{@ip_address}/#{@ipv4_prefix_length}") if @ip_address and @ipv4_prefix_length
   end
 
   def parse_ipv6_address(required = false)
     if @parse_text.sub!(/(#{IPV6_ADDRESS_PATTERN})(?=\/|$)/x, '')
       @ip_address = $1
     elsif required
-      raise SPF::TermIPv6AddressExpected.new(
-        "Missing required IPv6 address in '#{@text}'")
+      error(SPF::TermIPv6AddressExpected.new(
+        "Missing required IPv6 address in '#{@text}'"))
     end
   end
 
@@ -164,13 +167,15 @@ class SPF::Term
     if @parse_text.sub!(/^\/(\d+)/, '')
       bits = $1.to_i
       unless bits and bits >= 0 and bits <= 128 and $1 !~ /^0./
-        raise SPF::TermIPv6PrefixLengthExpectedError.new(
-          "Invalid IPv6 prefix length encountered in '#{@text}'")
+        error(SPF::TermIPv6PrefixLengthExpectedError.new(
+          "Invalid IPv6 prefix length encountered in '#{@text}'"))
+        return
       end
       @ipv6_prefix_length = bits
     elsif required
-      raise SPF::TermIPvPrefixLengthExpected.new(
-        "Missing required IPv6 prefix length in '#{@text}'")
+      error(SPF::TermIPvPrefixLengthExpected.new(
+        "Missing required IPv6 prefix length in '#{@text}'"))
+      return
     else
       @ipv6_prefix_length = self.default_ipv6_prefix_length
     end
@@ -179,7 +184,7 @@ class SPF::Term
   def parse_ipv6_network(required = false)
     self.parse_ipv6_address(required)
     self.parse_ipv6_prefix_length
-    @ip_network = IP.new("#{@ip_address}/#{@ipv6_prefix_length}")
+    @ip_network = IP.new("#{@ip_address}/#{@ipv6_prefix_length}") if @ip_address and @ipv6_prefix_length
   end
 
   def parse_ipv4_ipv6_prefix_lengths
@@ -205,7 +210,9 @@ class SPF::Term
       raise SPF::NoUnparsedTextError
     end
   end
+end
 
+class SPF::UnknownTerm < SPF::Term
 end
 
 class SPF::Mech < SPF::Term
@@ -242,17 +249,17 @@ class SPF::Mech < SPF::Term
       raise SPF::NothingToParseError.new('Nothing to parse for mechanism')
     end
     parse_qualifier
-    parse_name
-    parse_params
-    parse_end
+    parse_name      if @errors.empty?
+    parse_params    if @errors.empty?
+    parse_end       if @errors.empty?
   end
 
   def parse_qualifier
     if @parse_text.sub!(/(#{QUALIFIER_PATTERN})?/x, '')
       @qualifier = $1 or DEFAULT_QUALIFIER
     else
-      raise SPF::InvalidMechQualifierError.new(
-          "Invalid qualifier encountered in '#{@text}'")
+      error(SPF::InvalidMechQualifierError.new(
+          "Invalid qualifier encountered in '#{@text}'"))
     end
   end
 
@@ -260,7 +267,7 @@ class SPF::Mech < SPF::Term
     if @parse_text.sub!(/^ (#{NAME_PATTERN}) (?: : (?=.) )? /x, '')
       @name = $1
     else
-      raise SPF::InvalidMech.new("Unexpected mechanism encountered in '#{@text}'")
+      error(SPF::InvalidMech.new("Unexpected mechanism encountered in '#{@text}'"))
     end
   end
 
@@ -273,7 +280,7 @@ class SPF::Mech < SPF::Term
 
   def parse_end
     unless @parse_text == ''
-      raise SPF::JunkInTermError.new("Junk encountered in mechanism '#{@text}'")
+      error(SPF::JunkInTermError.new("Junk encountered in mechanism '#{@text}'"))
     end
     @parse_text = nil
   end
@@ -432,6 +439,7 @@ class SPF::Mech < SPF::Term
     end
 
     def match(server, request, want_result = true)
+      return false unless @ip_network
       ip_network_v6 = IP::V4 === @ip_network ?
         SPF::Util.ipv4_address_to_ipv6(@ip_network) :
         @ip_network
@@ -607,10 +615,10 @@ class SPF::Mod < SPF::Term
   end
 
   def parse
-    raise SPF::NothingToParseError('Nothing to parse for modifier') unless @parse_text
-    self.parse_name
-    self.parse_params(true)
-    self.parse_end
+    error(SPF::NothingToParseError('Nothing to parse for modifier')) unless @parse_text
+    self.parse_name         if @errors.empty?
+    self.parse_params(true) if @errors.empty?
+    self.parse_end          if @errors.empty?
   end
 
   def parse_name
@@ -618,8 +626,8 @@ class SPF::Mod < SPF::Term
     if $1
       @name = $1
     else
-      raise SPF::InvalidModError.new(
-        "Unexpected modifier name encoutered in #{@text}")
+      error(SPF::InvalidModError.new(
+        "Unexpected modifier name encoutered in #{@text}"))
     end
   end
 
@@ -629,14 +637,14 @@ class SPF::Mod < SPF::Term
     if $1
       @params_text = $1
     elsif required
-      raise SPF::InvalidMacroStringError.new(
-        "Invalid macro string encountered in #{@text}")
+      error(SPF::InvalidMacroStringError.new(
+        "Invalid macro string encountered in #{@text}"))
     end
   end
 
   def parse_end
     unless @parse_text == ''
-      raise SPF::JunkInTermError("Junk encountered in modifier #{@text}")
+      error(SPF::JunkInTermError.new("Junk encountered in modifier #{@text}"))
     end
     @parse_text = nil
   end
@@ -784,6 +792,11 @@ class SPF::Record
     return record
   end
 
+  def error(exception)
+    raise exception if @raise_exceptions
+    @errors << exception
+  end
+
   def ip_netblocks
     @ip_netblocks.flatten!
     return @ip_netblocks
@@ -791,7 +804,8 @@ class SPF::Record
 
   def parse
     unless self.instance_variable_defined?(:@parse_text) and @parse_text
-      raise SPF::NothingToParseError.new('Nothing to parse for record')
+      error(SPF::NothingToParseError.new('Nothing to parse for record'))
+      return
     end
     self.parse_version_tag
     while @parse_text.length > 0
@@ -805,11 +819,9 @@ class SPF::Record
         return if SPF::JunkInRecordError === e
       end
     end
-    #self.parse_end
   end
 
   def parse_version_tag
-    #@parse_text.sub!(self.version_tag_pattern, '')
     @parse_text.sub!(/^#{self.version_tag_pattern}\s+/ix, '')
     unless $1
       raise SPF::InvalidRecordVersionError.new(
@@ -834,11 +846,15 @@ class SPF::Record
       mech_text  = $1
       mech_name  = $2.downcase
       mech_class = self.mech_classes[mech_name.to_sym]
+      exception  = nil
       unless mech_class
-        raise SPF::InvalidMech.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
+        exception = SPF::InvalidMech.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
+        error(exception)
+        mech_class = SPF::Mech
       end
-      term = mech = mech_class.new_from_string(mech_text)
-      @ip_netblocks << mech.ip_netblocks
+      term = mech = mech_class.new_from_string(mech_text, {:raise_exceptions => @raise_exceptions})
+      term.errors << exception if exception
+      @ip_netblocks << mech.ip_netblocks if mech.ip_netblocks
       @terms << mech
     elsif (
       @parse_text.sub!(/
@@ -856,7 +872,7 @@ class SPF::Record
       mod_class = self.class::MOD_CLASSES[mod_name.to_sym]
       if mod_class
         # Known modifier.
-        term = mod = mod_class.new_from_string(mod_text)
+        term = mod = mod_class.new_from_string(mod_text, {:raise_exceptions => @raise_exceptions})
         if SPF::GlobalMod === mod
           # Global modifier.
           if @global_mods[mod_name]
@@ -872,6 +888,7 @@ class SPF::Record
     else
       raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'")
     end
+    @errors.concat(term.errors)
     return term
   end
 
@@ -910,7 +927,7 @@ class SPF::Record
           # Term is an unknown modifier.  Ignore it (RFC 4408, 6/3).
         else
           # Invalid term object encountered:
-          raise SPF::UnexpectedTermObjectError.new("Unexpected term object '#{term}' encountered.")
+          error(SPF::UnexpectedTermObjectError.new("Unexpected term object '#{term}' encountered."))
         end
       end
     rescue SPF::Result => result
