@@ -267,7 +267,7 @@ class SPF::Mech < SPF::Term
     if @parse_text.sub!(/^ (#{NAME_PATTERN}) (?: : (?=.) )? /x, '')
       @name = $1
     else
-      error(SPF::InvalidMech.new("Unexpected mechanism encountered in '#{@text}'"))
+      error(SPF::InvalidMechError.new("Unexpected mechanism encountered in '#{@text}'"))
     end
   end
 
@@ -856,6 +856,9 @@ class SPF::Record
       term.errors << exception if exception
       @ip_netblocks << mech.ip_netblocks if mech.ip_netblocks
       @terms << mech
+      if mech_class == SPF::Mech
+        raise SPF::InvalidMechError.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
+      end
     elsif (
       @parse_text.sub!(/
         ^
@@ -869,7 +872,7 @@ class SPF::Record
       # Looks like a modifier:
       mod_text  = $1
       mod_name  = $2.downcase
-      mod_class = self.class::MOD_CLASSES[mod_name.to_sym]
+      mod_class = self.class::MOD_CLASSES[mod_name.to_sym] || SPF::Mod
       if mod_class
         # Known modifier.
         term = mod = mod_class.new_from_string(mod_text, {:raise_exceptions => @raise_exceptions})
