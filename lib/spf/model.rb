@@ -307,7 +307,7 @@ class SPF::Mech < SPF::Term
 
     ipv4_prefix_length = @ipv4_prefix_length || self.default_ipv4_prefix_length
     ipv6_prefix_length = @ipv6_prefix_length || self.default_ipv6_prefix_length
-    packet             = server.dns_lookup(domain, 'ANY')
+    packet             = server.dns_lookup(domain.to_s, 'ANY')
     server.count_void_dns_lookup(request) unless (rrs = packet)
 
     rrs.each do |rr|
@@ -411,7 +411,7 @@ class SPF::Mech < SPF::Term
 
       domain = self.domain(server, request)
       packet = server.dns_lookup(domain, 'A')
-      rrs = (packet.answer or server.count_void_dns_lookup(request))
+      rrs = (packet.exchange or server.count_void_dns_lookup(request))
       rrs.each do |rr|
         return true if rr.type == 'A'
       end
@@ -555,18 +555,18 @@ class SPF::Mech < SPF::Term
 
       target_domain = self.domain(server, request)
       mx_packet     = server.dns_lookup(target_domain, 'MX')
-      mx_rrs        = (mx_packet[0].answer or server.count_void_dns_lookup(request))
+      mx_rrs        = (mx_packet or server.count_void_dns_lookup(request))
 
       # Respect the MX mechanism lookups limit (RFC 4408, 5.4/3/4):
       if server.max_name_lookups_per_mx_mech
-        mx_rrs = max_rrs[0, server.max_name_lookups_per_mx_mech]
+        mx_rrs = mx_rrs[0, server.max_name_lookups_per_mx_mech]
       end
 
       # TODO: Use A records from packet's "additional" section? Probably not.
 
       # Check MX records:
       mx_rrs.each do |rr|
-        if rr.type == 'MX'
+        if Resolv::DNS::Resource::IN::MX === rr
           return true if
             self.match_in_domain(server, request, rr.exchange)
         else
@@ -664,6 +664,7 @@ class SPF::Mod < SPF::Term
   end
 
   class SPF::UnknownMod < SPF::Mod
+    NAME = 'uknown'
   end
 
   class SPF::Mod::Exp < SPF::Mod
@@ -872,7 +873,7 @@ class SPF::Record
       # Looks like a modifier:
       mod_text  = $1
       mod_name  = $2.downcase
-      mod_class = self.class::MOD_CLASSES[mod_name.to_sym] || SPF::Mod
+      mod_class = self.class::MOD_CLASSES[mod_name.to_sym] || SPF::UnknownMod
       if mod_class
         # Known modifier.
         term = mod = mod_class.new_from_string(mod_text, {:raise_exceptions => @raise_exceptions})
@@ -957,7 +958,7 @@ class SPF::Record
 
     MOD_CLASSES = {
       :redirect => SPF::Mod::Redirect,
-      :exp      => SPF::Mod::Exp
+      :exp      => SPF::Mod::Exp,
     }
 
 
