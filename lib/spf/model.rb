@@ -365,7 +365,7 @@ class SPF::Mech < SPF::Term
       if @ipv4_prefix_length and @ipv4_prefix_length != self.default_ipv4_prefix_length
         params += '/' + @ipv4_prefix_length.to_s
       end
-      if @ipv6_prefix_length and @ipv6_prefix_length != DEFAULT_IPV6_PREFIX_LENGTH
+      if @ipv6_prefix_length and @ipv6_prefix_length != self.default_ipv6_prefix_length
         params += '//' + @ipv6_prefix_length.to_s
       end
       return params
@@ -458,9 +458,9 @@ class SPF::Mech < SPF::Term
     end
 
     def params
-      params =  ':' + @ip_network.short
-      params += '/' + @ip_network.pfxlen if
-        @ip_network.pfxlen != DEFAULT_IPV6_PREFIX_LENGTH
+      params =  @ip_network.to_addr
+      params += '/' + @ip_network.pfxlen.to_s if
+        @ip_network.pfxlen != self.default_ipv6_prefix_length
       return params
     end
 
@@ -543,7 +543,7 @@ class SPF::Mech < SPF::Term
       if @ipv4_prefix_length and @ipv4_prefix_length != self.default_ipv4_prefix_length
         params += '/' + @ipv4_prefix_length
       end
-      if @ipv6_prefix_length and @ipv6_prefix_length != DEFAULT_IPV6_PREFIX_LENGTH
+      if @ipv6_prefix_length and @ipv6_prefix_length != self.default_ipv6_prefix_length
         params += '//' + @ipv6_prefix_length
       end
       return params
@@ -667,12 +667,13 @@ class SPF::Mod < SPF::Term
     NAME = 'uknown'
   end
 
-  class SPF::Mod::Exp < SPF::Mod
+  class SPF::Mod::Exp < SPF::GlobalMod
 
     attr_reader :domain_spec
 
     NAME       = 'exp'
-    PRECEDENCE = 0.2
+
+    def precedence; 0.2; end
 
     def parse_params(required = true)
       self.parse_domain_spec(required)
@@ -714,7 +715,8 @@ class SPF::Mod < SPF::Term
     attr_reader :domain_spec
 
     NAME       = 'redirect'
-    PRECEDENCE = 0.8
+
+    def precedence; 0.8; end
 
     def init(options = {})
       super(options)
