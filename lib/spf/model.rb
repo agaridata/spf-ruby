@@ -20,7 +20,7 @@ class SPF::Term
 
   NAME_PATTERN               = '[[:alpha:]] [[:alnum:]\\-_\\.]*'
 
-  MACRO_LITERAL_PATTERN      = "[!-$&-~]"
+  MACRO_LITERAL_PATTERN      = "[!-$&-~%]"
   MACRO_DELIMITER            = "[\\.\\-+,\\/_=]"
   MACRO_TRANSFORMERS_PATTERN = "\\d*r?"
   MACRO_EXPAND_PATTERN       = "
@@ -254,6 +254,8 @@ class SPF::Mech < SPF::Term
     parse_end       if @errors.empty?
   end
 
+  def params; nil; end
+
   def parse_qualifier
     if @parse_text.sub!(/(#{QUALIFIER_PATTERN})?/x, '')
       @qualifier = $1 or DEFAULT_QUALIFIER
@@ -360,7 +362,7 @@ class SPF::Mech < SPF::Term
     def params
       params = ''
       if @domain_spec
-        params += ':' + @domain_spec.to_s if @domain_spec
+        params += @domain_spec.to_s if @domain_spec
       end
       if @ipv4_prefix_length and @ipv4_prefix_length != self.default_ipv4_prefix_length
         params += '/' + @ipv4_prefix_length.to_s
@@ -403,7 +405,7 @@ class SPF::Mech < SPF::Term
     end
 
     def params
-      return @domain_spec ? ':' + @domain_spec : nill
+      return @domain_spec ? @domain_spec : nil
     end
 
     def match(server, request, want_result = true)
@@ -484,7 +486,7 @@ class SPF::Mech < SPF::Term
     end
 
     def params
-      return @domain_spec ? ':' + @domain_spec : nil
+      return @domain_spec ? @domain_spec.to_s : nil
     end
 
     def match(server, request, want_result = true)
@@ -538,13 +540,13 @@ class SPF::Mech < SPF::Term
     def params
       params = ''
       if @domain_spec
-        params += ':' + @domain_spec
+        params += @domain_spec.to_s
       end
       if @ipv4_prefix_length and @ipv4_prefix_length != self.default_ipv4_prefix_length
-        params += '/' + @ipv4_prefix_length
+        params += '/' + @ipv4_prefix_length.to_s
       end
       if @ipv6_prefix_length and @ipv6_prefix_length != self.default_ipv6_prefix_length
-        params += '//' + @ipv6_prefix_length
+        params += '//' + @ipv6_prefix_length.to_s
       end
       return params
     end
@@ -587,7 +589,7 @@ class SPF::Mech < SPF::Term
     end
 
     def params
-      return @domain_spec ? ':' + @domain_spec : nil
+      return @domain_spec ? @domain_spec : nil
     end
 
     def match(server, request, want_result = true)
