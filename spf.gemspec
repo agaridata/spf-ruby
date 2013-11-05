@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = "spf"
-  s.version = "0.0.15"
+  s.version = "0.0.16"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Andrew Flury", "Julian Mehnle"]
-  s.date = "2013-10-29"
+  s.date = "2013-11-05"
   s.description = "    An object-oriented Ruby implementation of the Sender Policy Framework (SPF)\n    e-mail sender authentication system, fully compliant with RFC 4408.\n"
   s.email = ["code@agari.com", "aflury@agari.com", "jmehnle@agari.com"]
   s.extra_rdoc_files = [
