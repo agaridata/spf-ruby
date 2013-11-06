@@ -165,7 +165,7 @@ class SPF::Term
       @ip_address = $1
     elsif required
       error(SPF::TermIPv6AddressExpected.new(
-        "Missing required IPv6 address in '#{@text}'"))
+        "Missing or invalid required IPv6 address in '#{@text}'"))
     end
     @ip_address = @parse_text.dup unless @ip_address
   end
@@ -474,7 +474,7 @@ class SPF::Mech < SPF::Term
 
     def params
       return nil unless @ip_network
-      result @ip_network if String === @ip_network
+      return @ip_network if String === @ip_network
       params =  @ip_network.to_addr
       params += '/' + @ip_network.pfxlen.to_s if
         @ip_network.pfxlen != self.default_ipv6_prefix_length
