@@ -128,6 +128,8 @@ class SPF::Term
       error(SPF::TermIPv4AddressExpectedError.new(
         "Missing or invalid required IPv4 address in '#{@text}'"))
     end
+    @ip_address = @parse_text.dup unless @ip_address
+
   end
 
   def parse_ipv4_prefix_length(required = false)
@@ -151,7 +153,11 @@ class SPF::Term
   def parse_ipv4_network(required = false)
     self.parse_ipv4_address(required)
     self.parse_ipv4_prefix_length
-    @ip_network = IP.new("#{@ip_address}/#{@ipv4_prefix_length}") if @ip_address and @ipv4_prefix_length
+    begin
+      @ip_network = IP.new("#{@ip_address}/#{@ipv4_prefix_length}") if @ip_address and @ipv4_prefix_length
+    rescue ArgumentError
+      @ip_network = @ip_address
+    end
   end
 
   def parse_ipv6_address(required = false)
@@ -161,6 +167,7 @@ class SPF::Term
       error(SPF::TermIPv6AddressExpected.new(
         "Missing required IPv6 address in '#{@text}'"))
     end
+    @ip_address = @parse_text.dup unless @ip_address
   end
 
   def parse_ipv6_prefix_length(required = false)
@@ -184,7 +191,11 @@ class SPF::Term
   def parse_ipv6_network(required = false)
     self.parse_ipv6_address(required)
     self.parse_ipv6_prefix_length
-    @ip_network = IP.new("#{@ip_address}/#{@ipv6_prefix_length}") if @ip_address and @ipv6_prefix_length
+    begin
+      @ip_network = IP.new("#{@ip_address}/#{@ipv6_prefix_length}") if @ip_address and @ipv6_prefix_length
+    rescue ArgumentError
+      @ip_network = @ip_address
+    end
   end
 
   def parse_ipv4_ipv6_prefix_lengths
@@ -429,11 +440,12 @@ class SPF::Mech < SPF::Term
 
     def parse_params(required = true)
       self.parse_ipv4_network(required)
-      @ip_netblocks << @ip_network
+      @ip_netblocks << @ip_network if IP === @ip_network
     end
 
     def params
       return nil unless @ip_network
+      return @ip_network if String === @ip_network
       result = @ip_network.to_addr
       if @ip_network.pfxlen != @default_ipv4_prefix_length
         result += "/#{@ip_network.pfxlen}"
@@ -457,11 +469,12 @@ class SPF::Mech < SPF::Term
 
     def parse_params(required = true)
       self.parse_ipv6_network(required)
-      @ip_netblocks << @ip_network
+      @ip_netblocks << @ip_network if IP === @ip_network
     end
 
     def params
       return nil unless @ip_network
+      result @ip_network if String === @ip_network
       params =  @ip_network.to_addr
       params += '/' + @ip_network.pfxlen.to_s if
         @ip_network.pfxlen != self.default_ipv6_prefix_length
