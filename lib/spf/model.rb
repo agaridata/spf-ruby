@@ -433,6 +433,7 @@ class SPF::Mech < SPF::Term
     end
 
     def params
+      return nil unless @ip_network
       result = @ip_network.to_addr
       if @ip_network.pfxlen != @default_ipv4_prefix_length
         result += "/#{@ip_network.pfxlen}"
@@ -460,6 +461,7 @@ class SPF::Mech < SPF::Term
     end
 
     def params
+      return nil unless @ip_network
       params =  @ip_network.to_addr
       params += '/' + @ip_network.pfxlen.to_s if
         @ip_network.pfxlen != self.default_ipv6_prefix_length
