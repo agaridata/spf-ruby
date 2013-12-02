@@ -537,6 +537,7 @@ class SPF::Mech < SPF::Term
     def nested_record(server=nil, request=nil)
       return @nested_record if @nested_record
       authority_domain = self.domain(server, request)
+      return nil unless request
       sub_request = request.new_sub_request({:authority_domain => authority_domain})
       return @nested_record = server.select_record(sub_request)
     end
@@ -868,7 +869,7 @@ class SPF::Record
       mech_class = self.mech_classes[mech_name.to_sym]
       exception  = nil
       unless mech_class
-        exception = SPF::InvalidMech.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
+        exception = SPF::InvalidMechError.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
         error(exception)
         mech_class = SPF::Mech
       end
