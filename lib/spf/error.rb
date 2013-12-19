@@ -36,6 +36,7 @@ module SPF
       class DuplicateGlobalMod                < InvalidModError;    end  # Duplicate global modifier
       class InvalidMechError                  < InvalidTermError;   end  # Invalid mechanism
       class InvalidMechQualifierError         < InvalidMechError;   end  # Invalid mechanism qualifier
+      class InvalidMechCIDRError              < InvalidMechError;   end  # Invalid CIDR netblock in mech
       class TermDomainSpecExpectedError     < SyntaxError;          end  # Missing required <domain-spec> in term
       class TermIPv4AddressExpectedError    < SyntaxError;          end  # Missing required <ip4-network> in term
       class TermIPv4PrefixLengthExpected    < SyntaxError;          end  # Missing required <ip4-cidr-length> in term

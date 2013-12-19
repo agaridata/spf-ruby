@@ -386,7 +386,7 @@ class SPF::Mech < SPF::Term
 
     def match(server, request, want_result = true)
       server.count_dns_interactive_term(request)
-      return self.match_in_domain(server, request)
+      return self.match_in_domain(server, request, request.domain)
     end
 
   end
@@ -440,7 +440,12 @@ class SPF::Mech < SPF::Term
 
     def parse_params(required = true)
       self.parse_ipv4_network(required)
-      @ip_netblocks << @ip_network if IP === @ip_network
+      if IP === @ip_network
+        @ip_netblocks << @ip_network
+        @errors << SPF::InvalidMechCIDRError.new(
+          'Invalid CIDR netblock - bits in host portion of address'
+        ) if @ip_network.offset != 0
+      end
     end
 
     def params
@@ -470,6 +475,9 @@ class SPF::Mech < SPF::Term
     def parse_params(required = true)
       self.parse_ipv6_network(required)
       @ip_netblocks << @ip_network if IP === @ip_network
+      @errors << SPF::InvalidMechCIDRError.new(
+        'Invalid CIDR netblock - bits in host portion of address'
+      ) if @ip_network.offset != 0
     end
 
     def params
@@ -1043,6 +1051,10 @@ class SPF::Record
     VALID_SCOPE = /^(?: mfrom | pra )$/x
     def version_tag
       'v=spf2.0'
+    end
+
+    def scopes
+      [:mfrom, :pra]
     end
 
     def version_tag_pattern
