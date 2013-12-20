@@ -85,15 +85,17 @@ class SPF::Term
  ::
   "
 
-  attr_reader :errors, :ip_netblocks, :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length, :domain_spec
+  attr_reader :errors, :ip_netblocks, :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length, :domain_spec, :raw_params
 
   def initialize(options = {})
     @ip_address         = nil
     @ip_network         = nil
     @ipv4_prefix_length = nil
     @ipv6_prefix_length = nil
+    @raw_params         = nil
     @errors             = []
     @ip_netblocks       = []
+    @text               = options[:text]
     @raise_exceptions   = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
   end
 
@@ -103,7 +105,6 @@ class SPF::Term
   end
 
   def self.new_from_string(text, options = {})
-    #term = SPF::Term.new(options, {:text => text})
     options[:text] = text
     term = self.new(options)
     term.parse
@@ -122,6 +123,7 @@ class SPF::Term
   end
 
   def parse_ipv4_address(required = false)
+    @raw_params = @parse_text.dup
     if @parse_text.sub!(/^(#{IPV4_ADDRESS_PATTERN})/x, '')
       @ip_address = $1
     elsif required
@@ -151,6 +153,7 @@ class SPF::Term
   end
 
   def parse_ipv4_network(required = false)
+    @raw_params = @parse_text.dup
     self.parse_ipv4_address(required)
     self.parse_ipv4_prefix_length
     begin
@@ -189,6 +192,7 @@ class SPF::Term
   end
 
   def parse_ipv6_network(required = false)
+    @raw_params = @parse_text.dup
     self.parse_ipv6_address(required)
     self.parse_ipv6_prefix_length
     begin
@@ -285,9 +289,11 @@ class SPF::Mech < SPF::Term
   end
 
   def parse_params(required = true)
+    @raw_params = @parse_text.dup
     # Parse generic string of parameters text (should be overridden in sub-classes):
     if @parse_text.sub!(/^(.*)/, '')
       @params_text = $1
+      @raw_params  = @params_text.dup
     end
   end
 
@@ -366,6 +372,7 @@ class SPF::Mech < SPF::Term
     NAME = 'a'
 
     def parse_params(required = true)
+      @raw_params = @parse_text.dup
       self.parse_domain_spec
       self.parse_ipv4_ipv6_prefix_lengths
     end
@@ -410,6 +417,7 @@ class SPF::Mech < SPF::Term
     NAME = 'exists'
       
     def parse_params(required = true)
+      @raw_params = @raw_text.dup
       self.parse_domain_spec(required)
       # Other method of denoting "potentially ~infinite" netblocks?
       @ip_netblocks << nil
@@ -486,6 +494,8 @@ class SPF::Mech < SPF::Term
       params =  @ip_network.to_addr
       params += '/' + @ip_network.pfxlen.to_s if
         @ip_network.pfxlen != self.default_ipv6_prefix_length
+      puts "params: #{params}"
+      puts self.inspect
       return params
     end
 
@@ -505,6 +515,7 @@ class SPF::Mech < SPF::Term
     end
 
     def parse_params(required = true)
+      @raw_params = @parse_text.dup
       self.parse_domain_spec(required)
     end
 
@@ -557,6 +568,7 @@ class SPF::Mech < SPF::Term
     NAME = 'mx'
 
     def parse_params(required = true)
+      @raw_params = @parse_text.dup
       self.parse_domain_spec
       self.parse_ipv4_ipv6_prefix_lengths
     end
@@ -609,6 +621,7 @@ class SPF::Mech < SPF::Term
     NAME = 'ptr'
 
     def parse_params(required = true)
+      @raw_params = @parse_text.dup
       self.parse_domain_spec
     end
 
