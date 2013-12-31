@@ -299,7 +299,7 @@ class SPF::Mech < SPF::Term
 
   def parse_end
     unless @parse_text == ''
-      error(SPF::JunkInTermError.new("Junk encountered in mechanism '#{@text}'"))
+      error(SPF::JunkInTermError.new("Junk encountered in mechanism '#{@text}'", @text, @parse_text))
     end
     @parse_text = nil
   end
@@ -931,7 +931,7 @@ class SPF::Record
       end
 
     else
-      raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'")
+      raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'", @text, @parse_text)
     end
     @errors.concat(term.errors)
     return term

@@ -32,7 +32,15 @@ module SPF
   ##############################################################################
 
     class NothingToParseError             < Error;                  end  # Nothing to parse
-    class SyntaxError                     < Error;                  end  # Generic syntax error
+    class SyntaxError                     < Error                        # Generic syntax error
+      attr_accessor :text, :parse_text
+      def initialize(message, text=nil, parse_text=nil)
+        @text = text
+        @parse_text = parse_text
+        super(message)
+      end
+    end
+      
       class InvalidRecordVersionError       < SyntaxError;          end  # Invalid record version
       class InvalidScopeError               < SyntaxError;          end  # Invalid scope
       class JunkInRecordError               < SyntaxError;          end  # Junk encountered in record
