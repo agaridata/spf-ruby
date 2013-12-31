@@ -229,7 +229,8 @@ class SPF::Server
       if records.length != 1
         # RFC 4408, 4.5/6
         raise SPF::RedundantAcceptableRecordsError.new(
-          "Redundant applicable '#{preferred_record_class.version_tag}' sender policies found"
+          "Redundant applicable '#{preferred_record_class.version_tag}' sender policies found",
+          records
         )
       end
 
@@ -263,7 +264,6 @@ class SPF::Server
           # Record covers requested scope.
           records << record
         end
-        break
       end
     end
     return records

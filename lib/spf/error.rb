@@ -16,7 +16,13 @@ module SPF
       class DNSTimeoutError                 < DNSError;             end  # DNS timeout
     class RecordSelectionError            < Error;                  end  # Record selection error
       class NoAcceptableRecordError         < RecordSelectionError; end  # No acceptable record found
-      class RedundantAcceptableRecordsError < RecordSelectionError; end  # Redundant acceptable records found
+      class RedundantAcceptableRecordsError < RecordSelectionError       # Redundant acceptable records found
+        attr_accessor :records
+        def initialize(message, records=[])
+          @records = records
+          super(message)
+        end
+      end
     class NoUnparsedTextError             < Error;                  end  # No unparsed text available
     class UnexpectedTermObjectError       < Error;                  end  # Unexpected term object encountered
     class ProcessingLimitExceededError    < Error;                  end  # Processing limit exceeded
