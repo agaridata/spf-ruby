@@ -26,7 +26,7 @@ class SPF::Request
     @versions          = options[:versions]
     @scope             = options[:scope]             || :mfrom
     @scope             = @scope.to_sym if String === @scope
-    @_authority_domain = options[:authority_domain]
+    @authority_domain  = options[:authority_domain]
     @identity          = options[:identity]
     @ip_address        = options[:ip_address]
     @helo_identity     = options[:helo_identity]
@@ -112,7 +112,7 @@ class SPF::Request
   end
 
   def new_sub_request(options)
-    obj = self.class.new(opt.merge(options))
+    obj = self.class.new(@opt.merge(options))
     obj.super_request = self
     obj.root_request  = super_request.root_request
     @sub_requests << obj
@@ -120,7 +120,7 @@ class SPF::Request
   end
 
   def authority_domain
-    return (@_authority_domain or @domain)
+    return (@authority_domain or @domain)
   end
 
   def state(field, value = nil)

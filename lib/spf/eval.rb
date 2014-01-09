@@ -189,8 +189,8 @@ class SPF::Server
       end
     end
 
-    if (not records.any? and
-        @query_rr_types == QUERY_RR_TYPES_ALL or
+    if (not records.flatten.any? and
+        @query_rr_types == QUERY_RR_TYPE_ALL or
         @query_rr_types & QUERY_RR_TYPE_TXT)
       # NOTE:
       #   This deliberately violates RFC 4406 (Sender ID), 4.4/3 (4.4.1):

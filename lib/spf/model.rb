@@ -494,8 +494,6 @@ class SPF::Mech < SPF::Term
       params =  @ip_network.to_addr
       params += '/' + @ip_network.pfxlen.to_s if
         @ip_network.pfxlen != self.default_ipv6_prefix_length
-      puts "params: #{params}"
-      puts self.inspect
       return params
     end
 
@@ -543,7 +541,7 @@ class SPF::Mech < SPF::Term
       return false if
         SPF::Result::Fail     === result or
         SPF::Result::SoftFail === result or
-        SPF::Result::Neutral  === result or
+        SPF::Result::Neutral  === result
 
       server.throw_result('permerror', request,
         "Include domain '#{authority_domain}' has no applicable sender policy") if
