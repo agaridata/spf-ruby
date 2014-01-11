@@ -44,6 +44,8 @@ class SPF::Server
   DEFAULT_MAX_NAME_LOOKUPS_PER_PTR_MECH = DEFAULT_MAX_NAME_LOOKUPS_PER_TERM
   DEFAULT_MAX_VOID_DNS_LOOKUPS          = 2
 
+  LOOSE_SPF_MATCH_PATTERN = 'v=spf'
+
   def initialize(options = {})
     @default_authority_explanation = options[:default_authority_explanation] ||
       DEFAULT_DEFAULT_AUTHORITY_EXPLANATION
@@ -159,7 +161,7 @@ class SPF::Server
     return packet
   end
 
-  def select_record(request)
+  def select_record(request, loose_match = false)
     domain   = request.authority_domain
     versions = request.versions
     scope    = request.scope
@@ -169,9 +171,10 @@ class SPF::Server
     # in future revisions of SPF):
     # Query for SPF type records first, then fall back to TXT type records.
 
-    records     = []
-    query_count = 0
-    dns_errors  = []
+    records       = []
+    loose_records = []
+    query_count   = 0
+    dns_errors    = []
 
     # Query for SPF-type RRs first:
     if (@query_rr_types == QUERY_RR_TYPE_ALL or
@@ -179,8 +182,10 @@ class SPF::Server
       begin
         query_count += 1
         packet = self.dns_lookup(domain, 'SPF')
-        records << self.get_acceptable_records_from_packet(
-          packet, 'SPF', versions, scope, domain)
+        matches = self.get_acceptable_records_from_packet(
+          packet, 'SPF', versions, scope, domain, loose_match)
+        records << matches[0]
+        loose_records << matches[1]
       rescue SPF::DNSError => e
         dns_errors << e
       #rescue SPF::DNSTimeout => e
@@ -205,8 +210,10 @@ class SPF::Server
       begin
         query_count += 1
         packet = self.dns_lookup(domain, 'TXT')
-        records << self.get_acceptable_records_from_packet(
-          packet, 'TXT', versions, scope, domain)
+        matches = self.get_acceptable_records_from_packet(
+          packet, 'TXT', versions, scope, domain, loose_match)
+        records << matches[0]
+        loose_records << matches[1]
       rescue SPF::DNSError => e
         dns_errors << e
       end
@@ -215,10 +222,12 @@ class SPF::Server
       raise dns_errors[0] unless dns_errors.length < query_count
 
       records.flatten!
+      loose_records.flatten!
 
       if records.empty?
         # RFC 4408, 4.5/7
-        raise SPF::NoAcceptableRecordError.new('No applicable sender policy available')
+        raise SPF::NoAcceptableRecordError.new('No applicable sender policy available',
+                                               loose_records)
       end
 
       # Discard all records but the highest acceptable version:
@@ -238,7 +247,7 @@ class SPF::Server
     end
   end
 
-  def get_acceptable_records_from_packet(packet, rr_type, versions, scope, domain)
+  def get_acceptable_records_from_packet(packet, rr_type, versions, scope, domain, loose_match)
 
     # Try higher record versions first.
     # (This may be too simplistic for future revisions of SPF.)
@@ -246,6 +255,7 @@ class SPF::Server
 
     rr_type = resource_typeclass_for_rr_type(rr_type)
     records = []
+    possible_matches = []
     packet.each do |rr|
       next unless rr_type === rr
       text = rr.strings.join('')
@@ -255,6 +265,9 @@ class SPF::Server
         begin
           record = klass.new_from_string(text, {:raise_exceptions => @raise_exceptions})
         rescue SPF::InvalidRecordVersionError => error
+          if text =~ /#{LOOSE_SPF_MATCH_PATTERN}/
+            possible_matches << text
+          end
           # Ignore non-SPF and unknown-version records.
           # Propagate other errors (including syntax errors), though.
         end
@@ -266,7 +279,7 @@ class SPF::Server
         end
       end
     end
-    return records
+    return records, possible_matches
   end
 
   def count_dns_interactive_term(request)
