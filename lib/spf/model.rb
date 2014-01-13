@@ -451,7 +451,7 @@ class SPF::Mech < SPF::Term
       if IP === @ip_network
         @ip_netblocks << @ip_network
         @errors << SPF::InvalidMechCIDRError.new(
-          'Invalid CIDR netblock - bits in host portion of address'
+          "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
         ) if @ip_network.offset != 0
       end
     end
@@ -484,7 +484,7 @@ class SPF::Mech < SPF::Term
       self.parse_ipv6_network(required)
       @ip_netblocks << @ip_network if IP === @ip_network
       @errors << SPF::InvalidMechCIDRError.new(
-        'Invalid CIDR netblock - bits in host portion of address'
+        "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
       ) if @ip_network.offset != 0
     end
 
@@ -929,7 +929,14 @@ class SPF::Record
       end
 
     else
-      raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'", @text, @parse_text)
+      token_text = @parse_text.sub(/\s.*/, '')
+      hint = nil
+      if token_text =~ /#{SPF::Term::IPV4_ADDRESS_PATTERN}/x
+        hint = 'missing ip4: before IPv4 address?'
+      elsif token_text =~ /#{SPF::Term::IPV6_ADDRESS_PATTERN}/x
+        hint = 'missing ip6: before IPv6 address?'
+      end
+      raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'", @text, @parse_text, hint)
     end
     @errors.concat(term.errors)
     return term

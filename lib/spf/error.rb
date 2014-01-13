@@ -33,10 +33,11 @@ module SPF
 
     class NothingToParseError             < Error;                  end  # Nothing to parse
     class SyntaxError                     < Error                        # Generic syntax error
-      attr_accessor :text, :parse_text, :domain
-      def initialize(message, text=nil, parse_text=nil)
+      attr_accessor :text, :parse_text, :domain, :hint
+      def initialize(message, text=nil, parse_text=nil, hint=nil)
         @text = text
         @parse_text = parse_text
+        @hint = hint
         super(message)
       end
     end
