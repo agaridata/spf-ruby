@@ -417,7 +417,7 @@ class SPF::Mech < SPF::Term
     NAME = 'exists'
       
     def parse_params(required = true)
-      @raw_params = @raw_text.dup
+      @raw_params = @parse_text.dup
       self.parse_domain_spec(required)
       # Other method of denoting "potentially ~infinite" netblocks?
       @ip_netblocks << nil
