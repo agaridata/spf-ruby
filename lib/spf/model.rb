@@ -681,7 +681,7 @@ class SPF::Mod < SPF::Term
 
   def parse_end
     unless @parse_text == ''
-      error(SPF::JunkInTermError.new("Junk encountered in modifier #{@text}"))
+      error(SPF::JunkInTermError.new("Junk encountered in modifier #{@text}", @text, @parse_text))
     end
     @parse_text = nil
   end
@@ -856,7 +856,7 @@ class SPF::Record
         term.errors << e if term
         @errors     << e
         raise if @raise_exceptions
-        return if SPF::JunkInRecordError === e
+        return if SPF::JunkInRecordError === e or SPF::JunkInTermError === e
       end
     end
   end
