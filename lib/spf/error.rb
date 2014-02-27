@@ -14,6 +14,7 @@ module SPF
 
     class DNSError                        < Error;                  end  # DNS error
       class DNSTimeoutError                 < DNSError;             end  # DNS timeout
+      class DNSNXDomainError                < DNSError;             end  # DNS NXDomain
     class RecordSelectionError            < Error                        # Record selection error
       attr_accessor :records
       def initialize(message, records=[])

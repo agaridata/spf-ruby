@@ -1,5 +1,5 @@
 module SPF
-  VERSION = '0.0.32'
+  VERSION = '0.0.33'
 end
 
 # vim:sw=2 sts=2

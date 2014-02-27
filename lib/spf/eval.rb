@@ -140,7 +140,18 @@ class SPF::Server
     
     domain = domain.sub(/\.$/, '').downcase
 
-    packet = @dns_resolver.getresources(domain, rr_type)
+    packet = nil
+    begin
+      packet = @dns_resolver.getresources(domain, rr_type)
+    rescue Resolv::TimeoutError => e
+      raise SPF::DNSTimeoutError.new(
+        "Time-out on DNS '#{rr_type}' lookup of '#{domain}'")
+    rescue Resolv::NXDomainError => e
+      raise SPF::DNSError.new("NXDomain for '#{domain}'")
+    rescue Resolv::ResolvError => e
+      raise SPF::DNSError.new(
+        "Unknown error on DNS '#{rr_type}' lookup of '#{domain}'")
+    end
 
     # Raise DNS exception unless an answer packet with RCODE 0 or 3 (NXDOMAIN)
     # was received (thereby treating NXDOMAIN as an acceptable but empty answer packet):
