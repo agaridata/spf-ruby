@@ -1,13 +1,24 @@
 = SPF
 
-The +spf+ Ruby gem, also known as +spf-ruby+, is an implementation of the Sender Policy Framework (SPF) e-mail sender authentication system.
+The +spf+ Ruby gem, also known as +spf-ruby+, is an implementation of the Sender Policy Framework (SPF) e-mail sender
+authentication system.
 
 See <http://www.openspf.org> for more information about SPF.
 
-== Contributing
-
-Agari currently does not accept contributions of code to spf-ruby.
+Note: This gem is currently very early in its lifecycle.  The API is *not* guaranteed to be stable.
 
 == Copyright
 
-(C) 2013 Agari Data, Inc.  All rights reserved.  Distribution prohibited.
+Copyright 2013, 2014 Agari Data, Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
