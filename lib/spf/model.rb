@@ -766,6 +766,7 @@ class SPF::Mod < SPF::Term
     end
 
     def parse_params(required = true)
+      @raw_params = @parse_text.dup
       self.parse_domain_spec(required)
     end
 
