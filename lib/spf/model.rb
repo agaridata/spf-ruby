@@ -326,13 +326,22 @@ class SPF::Mech < SPF::Term
 
     ipv4_prefix_length = @ipv4_prefix_length || self.default_ipv4_prefix_length
     ipv6_prefix_length = @ipv6_prefix_length || self.default_ipv6_prefix_length
+
     begin
-      packet           = server.dns_lookup(domain.to_s, 'ANY')
+      rrs_a = server.dns_lookup(domain.to_s, 'A') || []
     rescue SPF::DNSError => e
       @errors << e
       return false
     end
-    server.count_void_dns_lookup(request) unless (rrs = packet)
+    begin
+      rrs_aaaa = server.dns_lookup(domain.to_s, 'AAAA') || []
+    rescue SPF::DNSError => e
+      @errors << e
+      return false
+    end
+
+    rrs = rrs_a + rrs_aaaa
+    server.count_void_dns_lookup(request) if rrs.empty?
 
     rrs.each do |rr|
       if Resolv::DNS::Resource::IN::A === rr
