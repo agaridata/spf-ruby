@@ -307,7 +307,7 @@ class SPF::Server
     void_dns_lookups_count = request.root_request.state(:void_dns_lookups_count, 1)
     if (@max_void_dns_lookups and
         void_dns_lookups_count > @max_void_dns_lookups)
-      raise SPF::ProcessingLimitExceeded.new(
+      raise SPF::ProcessingLimitExceededError.new(
         "Maximum void DNS look-ups limit (#{@max_void_dns_lookups}) exceeded")
     end
     return void_dns_lookups_count
