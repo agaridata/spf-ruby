@@ -567,8 +567,8 @@ class SPF::Mech < SPF::Term
 
     def nested_record(server=nil, request=nil, loose_match = false)
       return @nested_record if @nested_record
+      return nil unless server and request
       authority_domain = self.domain(server, request)
-      return nil unless request
       sub_request = request.new_sub_request({:authority_domain => authority_domain})
       return @nested_record = server.select_record(sub_request, loose_match)
     end
@@ -810,6 +810,7 @@ class SPF::Mod < SPF::Term
 
     def nested_record(server=nil, request=nil)
       return @nested_record if @nested_record
+      return nil unless server and request
       server.count_dns_interactive_term(request)
       authority_domain = self.domain(server, request)
       sub_request = request.new_sub_request({:authority_domain => authority_domain})
