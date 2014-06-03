@@ -68,8 +68,9 @@ class SPF::Server
       DEFAULT_MAX_NAME_LOOKUPS_PER_MX_MECH
     @max_name_lookups_per_ptr_mech = options[:max_name_lookups_per_ptr_mech] ||
       DEFAULT_MAX_NAME_LOOKUPS_PER_PTR_MECH
-    @max_void_dns_lookups          = options[:max_void_dns_lookups]          ||
-      DEFAULT_MAX_VOID_DNS_LOOKUPS
+
+    # TODO: We should probably do this for the above maximums (allow nil maximums).
+    @max_void_dns_lookups          = options.has_key?(:max_void_dns_lookups) ? options[:max_void_dns_lookups] : DEFAULT_MAX_VOID_DNS_LOOKUPS
 
     @raise_exceptions = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
 
