@@ -69,7 +69,7 @@ class SPF::Server
     @max_name_lookups_per_ptr_mech = options[:max_name_lookups_per_ptr_mech] ||
       DEFAULT_MAX_NAME_LOOKUPS_PER_PTR_MECH
 
-    # TODO: We should probably do this for the above maximums (allow nil maximums).
+    # TODO: We should probably do this for the above maximums.
     @max_void_dns_lookups          = options.has_key?(:max_void_dns_lookups) ? options[:max_void_dns_lookups] : DEFAULT_MAX_VOID_DNS_LOOKUPS
 
     @raise_exceptions = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
@@ -148,10 +148,9 @@ class SPF::Server
       raise SPF::DNSTimeoutError.new(
         "Time-out on DNS '#{rr_type}' lookup of '#{domain}'")
     rescue Resolv::NXDomainError => e
-      raise SPF::DNSError.new("NXDomain for '#{domain}'")
+      raise SPF::DNSNXDomainError.new("NXDomain for '#{domain}'")
     rescue Resolv::ResolvError => e
-      raise SPF::DNSError.new(
-        "Unknown error on DNS '#{rr_type}' lookup of '#{domain}'")
+      raise SPF::DNSError.new("Error on DNS lookup of '#{domain}'")
     end
 
     # Raise DNS exception unless an answer packet with RCODE 0 or 3 (NXDOMAIN)
