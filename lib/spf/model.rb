@@ -905,7 +905,7 @@ class SPF::Record
       mech_class = self.mech_classes[mech_name.to_sym]
       exception  = nil
       unless mech_class
-        exception = SPF::InvalidMechError.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
+        exception = SPF::InvalidMechError.new("Unknown mechanism type '#{mech_name}' in '#{self.version_tag}' record")
         error(exception)
         mech_class = SPF::Mech
       end
@@ -914,7 +914,7 @@ class SPF::Record
       @ip_netblocks << mech.ip_netblocks if mech.ip_netblocks
       @terms << mech
       if mech_class == SPF::Mech
-        raise SPF::InvalidMechError.new("Unknown mechanism type '#{mech_name}' in '#{@version_tag}' record")
+        raise SPF::InvalidMechError.new("Unknown mechanism type '#{mech_name}' in '#{self.version_tag}' record")
       end
     elsif (
       @parse_text.sub!(/
