@@ -727,7 +727,7 @@ class SPF::Mod < SPF::Term
     def precedence; 0.2; end
 
     def parse_params(required = true)
-      @raw_params = @domain_spec.dup
+      @raw_params = @parse_text.dup
       self.parse_domain_spec(required)
     end
 
