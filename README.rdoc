@@ -9,7 +9,6 @@ Note: This gem is currently very early in its lifecycle.  The API is *not* guara
 
 == Usage
 
-<tt>
   require 'spf'
 
   spf_server = SPF::Server.new
@@ -27,7 +26,6 @@ Note: This gem is currently very early in its lifecycle.  The API is *not* guara
   puts result
   
   result_code   = result.code # :pass, :fail, etc.
-</tt>
 
 == Copyright
 
