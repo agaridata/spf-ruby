@@ -7,6 +7,28 @@ See <http://www.openspf.org> for more information about SPF.
 
 Note: This gem is currently very early in its lifecycle.  The API is *not* guaranteed to be stable.
 
+== Usage
+
+<tt>
+  require 'spf'
+
+  spf_server = SPF::Server.new
+
+  request = SPF::Request.new(
+    versions:      [1, 2],             # optional
+    scope:         'mfrom',            # or 'helo', 'pra'
+    identity:      'fred@example.com',
+    ip_address:    '192.168.0.1',
+    helo_identity: 'mta.example.com'   # optional
+  )
+
+  result = spf_server.process(request)
+
+  puts result
+  
+  result_code   = result.code # :pass, :fail, etc.
+</tt>
+
 == Copyright
 
 Copyright 2013, 2014 Agari Data, Inc.
