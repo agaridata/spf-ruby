@@ -1,7 +1,7 @@
 = SPF
 
 The +spf+ Ruby gem, also known as +spf-ruby+, is an implementation of the Sender Policy Framework (SPF) e-mail sender
-authentication system.
+authentication system.  It is closely based on the Mail::SPF Perl library at <http://search.cpan.org/~jmehnle/Mail-SPF-v2.005/>.
 
 See <http://www.openspf.org> for more information about SPF.
 
