@@ -5,11 +5,11 @@
 
 Gem::Specification.new do |s|
   s.name = "spf"
-  s.version = "0.0.42"
+  s.version = "0.0.43"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Andrew Flury", "Julian Mehnle"]
-  s.date = "2014-07-08"
+  s.date = "2014-07-11"
   s.description = "    An object-oriented Ruby implementation of the Sender Policy Framework (SPF)\n    e-mail sender authentication system, fully compliant with RFC 4408.\n"
   s.email = ["code@agari.com", "aflury@agari.com", "jmehnle@agari.com"]
   s.extra_rdoc_files = [
@@ -46,12 +46,14 @@ Gem::Specification.new do |s|
     s.specification_version = 3
 
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
+      s.add_runtime_dependency(%q<ruby-ip>, ["~> 0.9.1"])
       s.add_development_dependency(%q<rspec>, ["~> 2.8.0"])
       s.add_development_dependency(%q<rdoc>, ["~> 3.12"])
       s.add_development_dependency(%q<bundler>, ["~> 1.0"])
       s.add_development_dependency(%q<jeweler>, ["~> 1.8.7"])
       s.add_development_dependency(%q<ruby-ip>, ["~> 0.9.1"])
     else
+      s.add_dependency(%q<ruby-ip>, ["~> 0.9.1"])
       s.add_dependency(%q<rspec>, ["~> 2.8.0"])
       s.add_dependency(%q<rdoc>, ["~> 3.12"])
       s.add_dependency(%q<bundler>, ["~> 1.0"])
@@ -59,6 +61,7 @@ Gem::Specification.new do |s|
       s.add_dependency(%q<ruby-ip>, ["~> 0.9.1"])
     end
   else
+    s.add_dependency(%q<ruby-ip>, ["~> 0.9.1"])
     s.add_dependency(%q<rspec>, ["~> 2.8.0"])
     s.add_dependency(%q<rdoc>, ["~> 3.12"])
     s.add_dependency(%q<bundler>, ["~> 1.0"])
