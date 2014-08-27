@@ -1,3 +1,4 @@
+# encoding: US-ASCII
 require 'ip'
 require 'socket'
 
