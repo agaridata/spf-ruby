@@ -99,11 +99,12 @@ module SPF
   end
 
   def self.sanitize_string(string)
-    return \
-      string &&
-      string.
-        gsub(/([\x00-\x1f\x7f-\xff])/) { |c| sprintf('\x%02x',   c.ord) }.
-        gsub(/([\u{0100}-\u{ffff}])/)  { |u| sprintf('\x{%04x}', u.ord) }
+    return unless string
+    if RUBY_VERSION < "2.0"
+      rex = "([\x00-\x1f\x7f-\xff])"
+      string = string.gsub(Regexp.new(rex)) { |c| sprintf('\x%02x',   c.ord) }
+    end
+    string.gsub(/([\u{0100}-\u{ffff}])/)  { |u| sprintf('\x{%04x}', u.ord) }
   end
 
   end
