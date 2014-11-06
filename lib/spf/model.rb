@@ -429,7 +429,7 @@ class SPF::Mech < SPF::Term
   class SPF::Mech::Exists < SPF::Mech
 
     NAME = 'exists'
-      
+
     def parse_params(required = true)
       @raw_params = @parse_text.dup
       self.parse_domain_spec(required)
@@ -576,7 +576,7 @@ class SPF::Mech < SPF::Term
   end
 
   class SPF::Mech::MX < SPF::Mech
-    
+
     NAME = 'mx'
 
     def parse_params(required = true)
@@ -999,7 +999,7 @@ class SPF::Record
       end
     rescue SPF::Result => result
       # Process global modifiers in ascending order of precedence:
-      @global_mods.each do |global_mod|
+      global_mods.each do |global_mod|
         global_mod.process(server, request, result)
       end
       raise result if want_result
