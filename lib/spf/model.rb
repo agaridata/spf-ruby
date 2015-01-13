@@ -299,7 +299,7 @@ class SPF::Mech < SPF::Term
 
   def parse_end
     unless @parse_text == ''
-      error(SPF::JunkInTermError.new("Junk encountered in mechanism '#{@text}'", @text, @parse_text))
+      error(SPF::JunkInTermError.new("Junk encountered in mechanism #{@text.dump}", @text, @parse_text))
     end
     @parse_text = nil
   end
@@ -695,7 +695,7 @@ class SPF::Mod < SPF::Term
 
   def parse_end
     unless @parse_text == ''
-      error(SPF::JunkInTermError.new("Junk encountered in modifier #{@text}", @text, @parse_text))
+      error(SPF::JunkInTermError.new("Junk encountered in modifier #{@text.dump}", @text, @parse_text))
     end
     @parse_text = nil
   end
@@ -953,7 +953,7 @@ class SPF::Record
       elsif token_text =~ /#{SPF::Term::IPV6_ADDRESS_PATTERN}/x
         hint = 'missing ip6: before IPv6 address?'
       end
-      raise SPF::JunkInRecordError.new("Junk encountered in record '#{@text}'", @text, @parse_text, hint)
+      raise SPF::JunkInRecordError.new("Junk encountered in record #{@text.dump}", @text, @parse_text, hint)
     end
     @errors.concat(term.errors)
     return term
