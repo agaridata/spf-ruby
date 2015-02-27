@@ -1,3 +1,4 @@
+# encoding: ASCII-8BIT
 require 'spf/version'
 require 'spf/error'
 require 'spf/model'

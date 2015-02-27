@@ -1,3 +1,4 @@
+# encoding: ASCII-8BIT
 require 'spf/util'
 
 module SPF
