@@ -1,5 +1,4 @@
 # encoding: ASCII-8BIT
-
 require 'ip'
 require 'socket'
 
