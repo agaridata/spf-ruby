@@ -10,10 +10,10 @@ Gem::Specification.new do |s|
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.require_paths = ["lib"]
-  s.authors = ["Andrew Flury", "Julian Mehnle"]
-  s.date = "2015-02-27"
+  s.authors = ["Andrew Flury", "Julian Mehnle", "Jacob Rideout"]
+  s.date = "2015-03-04"
   s.description = "    An object-oriented Ruby implementation of the Sender Policy Framework (SPF)\n    e-mail sender authentication system, fully compliant with RFC 4408.\n"
-  s.email = ["code@agari.com", "aflury@agari.com", "jmehnle@agari.com"]
+  s.email = ["code@agari.com", "aflury@agari.com", "jmehnle@agari.com", "jrideout@agari.com"]
   s.extra_rdoc_files = [
     "README.rdoc"
   ]

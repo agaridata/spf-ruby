@@ -18,8 +18,8 @@ Jeweler::Tasks.new do |gem|
   gem.name        = 'spf'
   gem.version     = SPF::VERSION
   gem.homepage    = 'https://github.com/agaridata/spf-ruby'
-  gem.authors     = ['Andrew Flury', 'Julian Mehnle']
-  gem.email       = ['code@agari.com', 'aflury@agari.com', 'jmehnle@agari.com']
+  gem.authors     = ['Andrew Flury', 'Julian Mehnle', 'Jacob Rideout']
+  gem.email       = ['code@agari.com', 'aflury@agari.com', 'jmehnle@agari.com', 'jrideout@agari.com']
   gem.license     = 'none (all rights reserved)'
   gem.summary     = 'Implementation of the Sender Policy Framework'
   gem.description = <<-DESCRIPTION
