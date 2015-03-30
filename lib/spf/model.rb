@@ -408,7 +408,7 @@ class SPF::Mech < SPF::Term
 
     def match(server, request, want_result = true)
       server.count_dns_interactive_term(request)
-      return self.match_in_domain(server, request, request.domain)
+      return self.match_in_domain(server, request, self.domain(server, request))
     end
 
   end
