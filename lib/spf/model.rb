@@ -558,7 +558,7 @@ class SPF::Mech < SPF::Term
         SPF::Result::SoftFail === result or
         SPF::Result::Neutral  === result
 
-      server.throw_result('permerror', request,
+      server.throw_result(:permerror, request,
         "Include domain '#{authority_domain}' has no applicable sender policy") if
         SPF::Result::None === result
 
