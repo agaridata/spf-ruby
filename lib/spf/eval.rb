@@ -86,7 +86,7 @@ class SPF::Server
   end
 
   def throw_result(name, request, text)
-    raise self.result_class(name).new(self, request, text)
+    raise self.result_class(name).new([self, request, text])
   end
 
   def process(request)
@@ -139,7 +139,7 @@ class SPF::Server
     end
 
     rr_type = self.resource_typeclass_for_rr_type(rr_type)
-    
+
     domain = domain.sub(/\.$/, '').downcase
 
     packet = nil
@@ -218,7 +218,7 @@ class SPF::Server
       #   Implication:  Sender ID processing may make use of existing TXT-
       #   type records where a result of "None" would normally be returned
       #   under a strict interpretation of RFC 4406.
-     
+
       begin
         query_count += 1
         packet = self.dns_lookup(domain, 'TXT')
