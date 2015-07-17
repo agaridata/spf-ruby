@@ -22,19 +22,19 @@ class SPF::Request
   DEFAULT_LOCALPART = 'postmaster'
 
   def initialize(options = {})
-    @opt               = options
-    @state             = {}
-    @versions          = options[:versions]
-    @scope             = options[:scope]             || :mfrom
-    @scope             = @scope.to_sym if String === @scope
-    @authority_domain  = options[:authority_domain]
-    @identity          = options[:identity]
-    @ip_address        = options[:ip_address]
-    @helo_identity     = options[:helo_identity]
-    @root_request      = self
-    @super_request     = self
-    @record            = nil
-    @sub_requests      = []
+    @opt              = options
+    @state            = {}
+    @versions         = options[:versions]
+    @scope            = options[:scope] || :mfrom
+    @scope            = @scope.to_sym if String === @scope
+    @authority_domain = options[:authority_domain]
+    @identity         = options[:identity]
+    @ip_address       = options[:ip_address]
+    @helo_identity    = options[:helo_identity]
+    @root_request     = self
+    @super_request    = self
+    @record           = nil
+    @sub_requests     = []
 
     # Scope:
     versions_for_scope = VERSIONS_FOR_SCOPE[@scope] or
@@ -42,11 +42,11 @@ class SPF::Request
 
     # Versions:
     if @versions
-      if Symbol === @versions
-        # Single version specified as a symbol:
+      if Fixnum === @versions
+        # Single version specified as a Fixnum:
         @versions = [@versions]
       elsif not Array === @versions
-        # Something other than symbol or array specified:
+        # Something other than Fixnum or array specified:
         raise SPF::InvalidOptionValueError.new("'versions' option must be symbol or array")
       end
 
@@ -63,6 +63,14 @@ class SPF::Request
       # No versions specified, use all versions relevant to scope:
       @versions = versions_for_scope
     end
+
+    versions = @versions.select {|x| versions_for_scope.include?(x)}
+    if versions.empty?
+      raise SPF::InvalidScopeError.new(
+        "Invalid scope '#{@scope}' for record version(s) #{@versions}"
+      )
+    end
+    @versions = versions
 
     # Identity:
     raise SPF::OptionRequiredError.new(
@@ -128,11 +136,15 @@ class SPF::Request
     unless field
       raise SPF::OptionRequiredError.new('Field name required')
     end
-    if value and Fixnum === value
-      @state[field] = 0 unless @state[field]
-      @state[field] += value
+    if value
+      if Fixnum === value
+        @state[field] = 0 unless @state[field]
+        return (@state[field] += value)
+      else
+        return (@state[field] = value)
+      end
     else
-      @state[field] = value
+      return @state[field]
     end
   end
 end

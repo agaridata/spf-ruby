@@ -4,7 +4,7 @@ require 'spf/util'
 
 class SPF::Result < Exception
 
-  attr_reader :server, :request
+  attr_reader :server, :request, :result_text
 
   class SPF::Result::Pass < SPF::Result
     def code
@@ -63,9 +63,6 @@ class SPF::Result < Exception
     # This is a special-case of the Neutral result that is thrown as a default
     # when "falling off" the end of the record.  See SPF::Record.eval().
     NAME = :neutral_by_default
-    def code
-      :neutral_by_default
-    end
   end
 
   class SPF::Result::None < SPF::Result
@@ -133,6 +130,7 @@ class SPF::Result < Exception
     unless self.instance_variable_defined?(:@request)
       raise SPF::OptionRequiredError.new('Request object required')
     end
+    @result_text = args.shift if args.any?
   end
 
   def name
@@ -142,20 +140,20 @@ class SPF::Result < Exception
   def klass(name=nil)
     if name
       name = name.to_sym if String === name
-      return self.RESULT_CLASSES[name]
+      return RESULT_CLASSES[name]
     else
       return name
     end
   end
 
   def isa_by_name(name)
-    suspect_class = self.klass(name)
+    suspect_class = self.klass(name.downcase)
     return false unless suspect_class
     return suspect_class === self
   end
   
   def is_code(code)
-    return self.isa_by_name(code)
+    return self.isa_by_name(code.downcase)
   end
 
   def to_s

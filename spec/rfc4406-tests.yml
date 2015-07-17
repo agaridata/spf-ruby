@@ -1,0 +1,33 @@
+# RFC 4406 test-suite (version 2006.11)
+#
+# (C) 2006 Julian Mehnle <julian@mehnle.net>
+# $Id: rfc4406-tests.yml 30 2006-11-27 19:55:10Z Julian Mehnle $
+#
+# vim:sw=2 sts=2
+---
+description: Selecting records
+tests:
+  v2-preferred-over-v1:
+    description: >-
+      "spf2.0" records ought to be preferred over "v=spf1" records.
+    spec: 4.4/6
+    helo: mail.example.com
+    host: 1.2.3.4
+    mailfrom: foo@v2+v1.example.com
+    result: fail
+  redundant-v2:
+    description: >-
+      Redundant "spf2.0" records must cause a PermError.
+    spec: 4.4/8
+    helo: mail.example.com
+    host: 1.2.3.4
+    mailfrom: foo@v2+v2+v1.example.com
+    result: permerror
+zonedata:
+  v2+v1.example.com:
+    - SPF:  spf2.0/mfrom -all
+    - SPF:  v=spf1 +all
+  v2+v2+v1.example.com:
+    - SPF:  spf2.0/mfrom -all
+    - SPF:  spf2.0/mfrom,pra -all
+    - SPF:  v=spf1 -all
