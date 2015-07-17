@@ -12,4 +12,5 @@ group :development do
   gem "rdoc", "~> 3"
   gem "bundler", "~> 1.2"
   gem "jeweler", "~> 1.8"
+  gem "simplecov", :require => false, :group => :test
 end
