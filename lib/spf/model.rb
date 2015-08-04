@@ -571,7 +571,7 @@ class SPF::Mech < SPF::Term
       return nil unless server and request
       authority_domain = self.domain(server, request)
       sub_request = request.new_sub_request({:authority_domain => authority_domain})
-      return @nested_record = server.selectrecord(sub_request, loose_match)
+      return @nested_record = server.select_record(sub_request, loose_match)
     end
 
   end
