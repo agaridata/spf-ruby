@@ -1,4 +1,5 @@
 # encoding: ASCII-8BIT
+require 'spf/ext/resolv'
 require 'spf/version'
 require 'spf/error'
 require 'spf/model'
@@ -6,7 +7,6 @@ require 'spf/request'
 require 'spf/eval'
 require 'spf/macro_string'
 require 'spf/util'
-require 'spf/ext/resolv'
 
 #
 # == SPF - An object-oriented implementation of Sender Policy Framework

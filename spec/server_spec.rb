@@ -13,6 +13,17 @@ test_resolver_1 = Resolv::DNS::Programmable.new ({
   }
 })
 
+test_resolver_redirect = Resolv::DNS::Programmable.new ({
+  records: {
+    'example.com' => [
+      Resolv::DNS::Resource::IN::TXT.new('v=spf1 redirect=foo.example.com')
+    ],
+    'foo.example.com' => [
+      Resolv::DNS::Resource::IN::TXT.new('v=spf1 ~all')
+    ]
+  }
+})
+
 test_resolver_nxdomain = Resolv::DNS::Programmable.new ({
   resolver_code: lambda { |name, typeclass|
     next Resolv::DNS::RCode::NXDomain
@@ -108,6 +119,21 @@ describe 'SERVFAIL lookup' do
   packet = server.dns_lookup('example.com', 'A')
   it 'returns empty result set??' do
     expect(packet).to eq []
+  end
+end
+
+describe 'redirect lookup' do
+  server = SPF::Server.new(
+    dns_resolver: test_resolver_redirect
+  )
+  request = SPF::Request.new(
+    versions: [1],
+    scope: :mfrom,
+    identity: 'example.com',
+    ip_address: '10.0.0.1'
+  )
+  it 'should give softfail result on redirect: -> ~all' do
+    expect(server.process(request)).to be_a SPF::Result::SoftFail
   end
 end
 

@@ -571,7 +571,7 @@ class SPF::Mech < SPF::Term
       return nil unless server and request
       authority_domain = self.domain(server, request)
       sub_request = request.new_sub_request({:authority_domain => authority_domain})
-      return @nested_record = server.select_record(sub_request, loose_match)
+      return @nested_record = server.selectrecord(sub_request, loose_match)
     end
 
   end
@@ -786,14 +786,14 @@ class SPF::Mod < SPF::Term
     end
 
     def process(server, request, result)
+
       server.count_dns_interactive_term(request)
 
       # Only perform redirection if no mechanism matched (RFC 4408, 6.1/1):
       return unless SPF::Result::NeutralByDefault === result
 
       # Create sub-request with mutated authorithy domain:
-      authority_domain = @domain_spec.new({:server => server, :request => request})
-      sub_request = request.new_sub_request({:authority_domain => authority_domain})
+      sub_request = request.new_sub_request({:authority_domain => @domain_spec})
 
       # Process sub-request:
       result = server.process(sub_request)
@@ -807,7 +807,7 @@ class SPF::Mod < SPF::Term
       end
 
       # Propagate any other results as-is:
-      result.throw
+      raise result
     end
 
     def nested_record(server=nil, request=nil)
@@ -998,6 +998,8 @@ class SPF::Record
           error(SPF::UnexpectedTermObjectError.new("Unexpected term object '#{term}' encountered."))
         end
       end
+      server.throw_result(:neutral_by_default, request,
+        'Default neutral result due to no mechanism matches')
     rescue SPF::Result => result
       # Process global modifiers in ascending order of precedence:
       global_mods.each do |global_mod|
