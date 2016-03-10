@@ -465,9 +465,11 @@ class SPF::Mech < SPF::Term
       self.parse_ipv4_network(required)
       if IP === @ip_network
         @ip_netblocks << @ip_network
-        @errors << SPF::InvalidMechCIDRError.new(
-          "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
-        ) if @ip_network.offset != 0
+        if @ip_network.respond_to?(:offset) && @ip_network.offset != 0
+          @errors << SPF::InvalidMechCIDRError.new(
+            "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
+          )
+        end
       end
     end
 
@@ -498,9 +500,11 @@ class SPF::Mech < SPF::Term
     def parse_params(required = true)
       self.parse_ipv6_network(required)
       @ip_netblocks << @ip_network if IP === @ip_network
-      @errors << SPF::InvalidMechCIDRError.new(
-        "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
-      ) if @ip_network.offset != 0
+      if @ip_network.respond_to?(:offset) && @ip_network.offset != 0
+        @errors << SPF::InvalidMechCIDRError.new(
+          "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
+        )
+      end
     end
 
     def params
