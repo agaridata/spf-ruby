@@ -36,6 +36,14 @@ test_resolver_servfail = Resolv::DNS::Programmable.new ({
   }
 })
 
+test_resolver_poorly_formed_record_address = Resolv::DNS::Programmable.new ({
+  records: {
+    'carminic.us' => [
+      Resolv::DNS::Resource::IN::TXT.new('v=spf1 ip6: 9C55::5E3D -all')
+    ],
+  }
+})
+
 describe 'basic instantiation' do
   server = SPF::Server.new(
     dns_resolver: test_resolver_empty,
@@ -137,6 +145,25 @@ describe 'redirect lookup' do
   end
 end
 
+
+
 #### SPF Record Selection / select_record(), get_acceptable_records_from_packet() ####
 
-# This gets checked by the RFC 4408 test suite.
+# See also the RFC 4408 test suite.
+
+describe 'bad record address' do
+  server = SPF::Server.new(
+    dns_resolver: test_resolver_poorly_formed_record_address,
+    raise_exceptions: false,
+  )
+  request = SPF::Request.new(
+    versions: [1],
+    scope: :mfrom,
+    identity: 'carminic.us',
+  )
+  it 'returns a record with errors' do
+    spf_record_error_types = server.select_record(request).errors.map {|err| err.class }
+    expect(spf_record_error_types).to include(SPF::TermIPv6AddressExpected)
+  end
+
+end

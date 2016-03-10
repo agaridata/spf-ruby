@@ -29,7 +29,7 @@ Note: This gem is currently very early in its lifecycle.  The API is *not* guara
 
 == Copyright
 
-Copyright 2013, 2014 Agari Data, Inc.
+Copyright 2016 Agari Data, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this software except in compliance with the License.
