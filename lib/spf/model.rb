@@ -184,7 +184,7 @@ class SPF::Term
       end
       @ipv6_prefix_length = bits
     elsif required
-      error(SPF::TermIPvPrefixLengthExpected.new(
+      error(SPF::TermIPv6PrefixLengthExpected.new(
         "Missing required IPv6 prefix length in '#{@text}'"))
       return
     else
