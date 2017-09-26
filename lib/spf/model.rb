@@ -214,7 +214,7 @@ class SPF::Term
 
   def domain(server, request)
     if self.instance_variable_defined?(:@domain_spec) and @domain_spec
-      return @domain_spec
+      return SPF::MacroString.new({:server => server, :request => request, :text => @domain_spec.text})
     end
     return request.authority_domain
   end
@@ -446,13 +446,13 @@ class SPF::Mech < SPF::Term
       server.count_dns_interactive_term(request)
 
       domain = self.domain(server, request)
-      packet = server.dns_lookup(domain, 'A')
-      rrs = (packet.exchange or server.count_void_dns_lookup(request))
-      rrs.each do |rr|
-        return true if rr.type == 'A'
+      begin
+        rrs = server.dns_lookup(domain, 'A')
+        return true if rrs.any?
+      rescue SPF::DNSNXDomainError => e
+        server.count_void_dns_lookup(request)
+        return false
       end
-
-      return false
     end
 
   end
