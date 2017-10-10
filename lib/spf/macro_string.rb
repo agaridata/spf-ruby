@@ -86,7 +86,11 @@ module SPF
                 server.throw_result(:permerror, request, "Unexpected IP address version in request")
               end
             elsif char == 'p' # RFC 4408, 8.1/22
-              # RFC 7208 says this should not be used
+              # According to RFC 7208 the "p" macro letter should not be used (or even published).
+              # Here it is left unexpanded and transformers and delimiters are not applied.
+              value = '%{' + m2.to_s
+              rh_parts = nil
+              reverse = nil
             elsif char == 'v' # RFC 4408, 8.1/6/7
               if IP::V4 === request.ip_address
                 value = 'in-addr'

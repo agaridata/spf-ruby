@@ -63,6 +63,26 @@ describe SPF::MacroString do
         expect(expanded).to eq('192.0.2.3')
       end
 
+      it 'does not expand the "p" macro letter' do
+        macro_str = described_class.new(
+          text: '%{p}',
+          request: @request,
+          server: @server
+        )
+        expanded = macro_str.expand
+        expect(expanded).to eq('%{p}')
+      end
+
+      it 'does not expand the "p" macro letter with transformers and delimiters' do
+        macro_str = described_class.new(
+          text: 'spamhaus.%{p1r+}.example.org',
+          request: @request,
+          server: @server
+        )
+        expanded = macro_str.expand
+        expect(expanded).to eq('spamhaus.%{p1r+}.example.org')
+      end
+
       it 'expands the "v" macro letter to the string "in-addr" if <ip> is ipv4' do
         macro_str = described_class.new(
           text: '%{v}',
