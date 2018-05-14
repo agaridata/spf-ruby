@@ -139,13 +139,13 @@ class SPF::Term
     if @parse_text.sub!(/^\/(\d+)/, '')
       bits = $1.to_i
       unless bits and bits >= 0 and bits <= 32 and $1 !~ /^0./
-        error(SPF::TermIPv4PrefixLengthExpected.new(
+        error(SPF::TermIPv4PrefixLengthExpectedError.new(
           "Invalid IPv4 prefix length encountered in '#{@text}'"))
         return
       end
       @ipv4_prefix_length = bits
     elsif required
-      error(SPF::TermIPv4PrefixLengthExpected.new(
+      error(SPF::TermIPv4PrefixLengthExpectedError.new(
         "Missing required IPv4 prefix length in '#{@text}"))
       return
     else
@@ -168,7 +168,7 @@ class SPF::Term
     if @parse_text.sub!(/(#{IPV6_ADDRESS_PATTERN})(?=\/|$)/x, '')
       @ip_address = $1
     elsif required
-      error(SPF::TermIPv6AddressExpected.new(
+      error(SPF::TermIPv6AddressExpectedError.new(
         "Missing or invalid required IPv6 address in '#{@text}'"))
     end
     @ip_address = @parse_text.dup unless @ip_address
@@ -184,7 +184,7 @@ class SPF::Term
       end
       @ipv6_prefix_length = bits
     elsif required
-      error(SPF::TermIPv6PrefixLengthExpected.new(
+      error(SPF::TermIPv6PrefixLengthExpectedError.new(
         "Missing required IPv6 prefix length in '#{@text}'"))
       return
     else
@@ -941,7 +941,7 @@ class SPF::Record
         if SPF::GlobalMod === mod
           # Global modifier.
           if @global_mods[mod_name]
-            raise SPF::DuplicateGlobalMod.new("Duplicate global modifier '#{mod_name}' encountered")
+            raise SPF::DuplicateGlobalModError.new("Duplicate global modifier '#{mod_name}' encountered")
           end
           @global_mods[mod_name] = mod
         elsif SPF::PositionalMod === mod

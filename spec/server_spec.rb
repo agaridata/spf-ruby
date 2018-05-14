@@ -163,7 +163,7 @@ describe 'bad record address' do
   )
   it 'returns a record with errors' do
     spf_record_error_types = server.select_record(request).errors.map {|err| err.class }
-    expect(spf_record_error_types).to include(SPF::TermIPv6AddressExpected)
+    expect(spf_record_error_types).to include(SPF::TermIPv6AddressExpectedError)
   end
 
 end
