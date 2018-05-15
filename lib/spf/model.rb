@@ -884,7 +884,7 @@ class SPF::Record
   end
 
   def parse_version_tag
-    @parse_text.sub!(/^#{self.version_tag_pattern}\s*/ix, '')
+    @parse_text.sub!(/^#{self.version_tag_pattern}\s*/x, '')
     unless $1
       raise SPF::InvalidRecordVersionError.new(
         "Not a '#{self.version_tag}' record: '#{@text}'")
