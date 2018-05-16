@@ -167,3 +167,25 @@ describe 'bad record address' do
   end
 
 end
+
+describe 'capitalized spf version' do
+  test_resolver = Resolv::DNS::Programmable.new ({
+    records: {
+      'example.com' => [
+        Resolv::DNS::Resource::IN::TXT.new('v=SPF1 include:agari.com -all')
+      ],
+    }
+  })
+  server = SPF::Server.new(
+    dns_resolver: test_resolver
+  )
+  request = SPF::Request.new(
+    versions: [1],
+    scope: :mfrom,
+    identity: 'example.com',
+    ip_address: '10.0.0.1'
+  )
+  it 'should give a failed result' do
+    expect { server.select_record(request) }.to raise_error(SPF::NoAcceptableRecordError)
+  end
+end
