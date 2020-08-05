@@ -86,7 +86,7 @@ class SPF::Term
  ::
   "
 
-  attr_reader :errors, :ip_netblocks, :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length, :domain_spec, :raw_params
+  attr_reader :errors, :ip_netblocks, :ip_address, :ip_network, :ipv4_prefix_length, :ipv6_prefix_length, :domain_spec, :raw_params, :record_domain
 
   def initialize(options = {})
     @ip_address         = nil
@@ -97,6 +97,7 @@ class SPF::Term
     @errors             = []
     @ip_netblocks       = []
     @text               = options[:text]
+    @record_domain      = options[:record_domain]
     @raise_exceptions   = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
   end
 
@@ -117,6 +118,8 @@ class SPF::Term
       domain_spec = $1
       domain_spec.sub!(/^(.*?)\.?$/, $1)
       @domain_spec = SPF::MacroString.new({:text => domain_spec})
+    elsif record_domain
+      @domain_spec = SPF::MacroString.new({:text => record_domain})
     elsif required
       error(SPF::TermDomainSpecExpectedError.new(
         "Missing required domain-spec in '#{@text}'"))
@@ -844,6 +847,7 @@ class SPF::Record
     @global_mods    ||= {}
     @errors           = []
     @ip_netblocks     = []
+    @record_domain    = options[:record_domain]
     @raise_exceptions = options.has_key?(:raise_exceptions) ? options[:raise_exceptions] : true
   end
 
@@ -914,7 +918,11 @@ class SPF::Record
         error(exception)
         mech_class = SPF::Mech
       end
-      term = mech = mech_class.new_from_string(mech_text, {:raise_exceptions => @raise_exceptions})
+      options = {:raise_exceptions => @raise_exceptions}
+      if instance_variable_defined?("@record_domain")
+        options[:record_domain] = @record_domain
+      end
+      term = mech = mech_class.new_from_string(mech_text, options)
       term.errors << exception if exception
       @ip_netblocks << mech.ip_netblocks if mech.ip_netblocks
       @terms << mech

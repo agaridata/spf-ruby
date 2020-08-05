@@ -275,7 +275,13 @@ class SPF::Server
       versions.each do |version|
         klass = RECORD_CLASSES_BY_VERSION[version]
         begin
-          record = klass.new_from_string(text, {:raise_exceptions => @raise_exceptions})
+          options = {:raise_exceptions => @raise_exceptions}
+          # A MacroString object for domain indicates this is a nested record.
+          # Storing the domain.text maintains an association to the include domain.
+          if domain.class == SPF::MacroString
+            options[:record_domain] = domain.text
+          end
+          record = klass.new_from_string(text, options)
         rescue SPF::InvalidRecordVersionError => error
           if text =~ /#{LOOSE_SPF_MATCH_PATTERN}/
             possible_matches << text
