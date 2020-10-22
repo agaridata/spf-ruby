@@ -11,6 +11,6 @@ group :development do
   gem "rspec", "~> 2.9"
   gem "rdoc", "~> 4.3"
   gem "bundler", "~> 1.2"
-  gem "jeweler", "~> 2.0"
+  gem "jeweler", "~> 2.3", ">= 2.3.9"
   gem "simplecov", :require => false, :group => :test
 end
