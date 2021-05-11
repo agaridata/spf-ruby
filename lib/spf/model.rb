@@ -995,7 +995,7 @@ class SPF::Record
           if mech.match(server, request, request.ip_address != nil)
             result_name = RESULTS_BY_QUALIFIER[mech.qualifier]
             result_class = server.result_class(result_name)
-            result = result_class.new([server, request, "Mechanism '#{term}' matched"])
+            result = result_class.new([server, request, "Mechanism '#{term.text}' matched"])
             mech.explain(server, request, result)
             raise result if want_result
           end
