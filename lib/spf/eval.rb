@@ -188,9 +188,21 @@ class SPF::Server
     query_count   = 0
     dns_errors    = []
 
-    # Query for SPF-type RRs first:
-    if (@query_rr_types == QUERY_RR_TYPE_ALL or
-        @query_rr_types & QUERY_RR_TYPE_SPF)
+    # Query for TXT-type RRs first:
+    if @query_rr_types != QUERY_RR_TYPE_SPF
+      begin
+        query_count += 1
+        packet = self.dns_lookup(domain, 'TXT')
+        matches = self.get_acceptable_records_from_packet(
+          packet, 'TXT', versions, scope, domain, loose_match)
+        records << matches[0]
+        loose_records << matches[1]
+      rescue SPF::DNSError => e
+        dns_errors << e
+      end
+    end
+
+    if records.flatten.empty? && @query_rr_types != QUERY_RR_TYPE_TXT
       begin
         query_count += 1
         packet = self.dns_lookup(domain, 'SPF')
@@ -206,57 +218,32 @@ class SPF::Server
       end
     end
 
-    if (not records.flatten.any? and
-        @query_rr_types == QUERY_RR_TYPE_ALL or
-        @query_rr_types & QUERY_RR_TYPE_TXT)
-      # NOTE:
-      #   This deliberately violates RFC 4406 (Sender ID), 4.4/3 (4.4.1):
-      #   TXT-type RRs are still tried if there _are_ SPF-type RRs but all
-      #   of them are inapplicable (e.g. "Hi!", or even "spf2/pra" for an
-      #   'mfrom' scope request).  This conforms to the spirit of the more
-      #   sensible algorithm in RFC 4408 (SPF), 4.5.
-      #   Implication:  Sender ID processing may make use of existing TXT-
-      #   type records where a result of "None" would normally be returned
-      #   under a strict interpretation of RFC 4406.
+    # Unless at least one query succeeded, re-raise the first DNS error that occured.
+    raise dns_errors[0] unless dns_errors.length < query_count
 
-      begin
-        query_count += 1
-        packet = self.dns_lookup(domain, 'TXT')
-        matches = self.get_acceptable_records_from_packet(
-          packet, 'TXT', versions, scope, domain, loose_match)
-        records << matches[0]
-        loose_records << matches[1]
-      rescue SPF::DNSError => e
-        dns_errors << e
-      end
+    records.flatten!
+    loose_records.flatten!
 
-      # Unless at least one query succeeded, re-raise the first DNS error that occured.
-      raise dns_errors[0] unless dns_errors.length < query_count
-
-      records.flatten!
-      loose_records.flatten!
-
-      if records.empty?
-        # RFC 4408, 4.5/7
-        raise SPF::NoAcceptableRecordError.new('No applicable sender policy available',
-                                               loose_records)
-      end
-
-      # Discard all records but the highest acceptable version:
-      preferred_record_class = records[0].class
-
-      records = records.select { |record| preferred_record_class === record }
-
-      if records.length != 1
-        # RFC 4408, 4.5/6
-        raise SPF::RedundantAcceptableRecordsError.new(
-          "Redundant applicable '#{preferred_record_class.version_tag}' sender policies found",
-          records
-        )
-      end
-
-      return records[0]
+    if records.empty?
+      # RFC 4408, 4.5/7
+      raise SPF::NoAcceptableRecordError.new('No applicable sender policy available',
+                                              loose_records)
     end
+
+    # Discard all records but the highest acceptable version:
+    preferred_record_class = records[0].class
+
+    records = records.select { |record| preferred_record_class === record }
+
+    if records.length != 1
+      # RFC 4408, 4.5/6
+      raise SPF::RedundantAcceptableRecordsError.new(
+        "Redundant applicable '#{preferred_record_class.version_tag}' sender policies found",
+        records
+      )
+    end
+
+    return records[0]
   end
 
   def get_acceptable_records_from_packet(packet, rr_type, versions, scope, domain, loose_match)
