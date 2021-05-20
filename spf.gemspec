@@ -3,10 +3,12 @@
 # Instead, edit Jeweler::Tasks in Rakefile, and run 'rake gemspec'
 # -*- encoding: utf-8 -*-
 # stub: spf 0.0.48 ruby lib
+$:.unshift File.expand_path("../lib", __FILE__)
+require 'spf/version'
 
 Gem::Specification.new do |s|
   s.name = "spf"
-  s.version = "0.0.53"
+  s.version = SPF::VERSION
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.require_paths = ["lib"]
