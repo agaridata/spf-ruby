@@ -3,7 +3,7 @@
 # Instead, edit Jeweler::Tasks in Rakefile, and run 'rake gemspec'
 # -*- encoding: utf-8 -*-
 # stub: spf 0.0.48 ruby lib
-
+$:.unshift File.expand_path("../lib", __FILE__)
 require 'spf/version'
 
 Gem::Specification.new do |s|
