@@ -42,11 +42,11 @@ class SPF::Request
 
     # Versions:
     if @versions
-      if Fixnum === @versions
-        # Single version specified as a Fixnum:
+      if Integer === @versions
+        # Single version specified as a Integer:
         @versions = [@versions]
       elsif not Array === @versions
-        # Something other than Fixnum or array specified:
+        # Something other than Integer or array specified:
         raise SPF::InvalidOptionValueError.new("'versions' option must be symbol or array")
       end
 
@@ -137,7 +137,7 @@ class SPF::Request
       raise SPF::OptionRequiredError.new('Field name required')
     end
     if value
-      if Fixnum === value
+      if Integer === value
         @state[field] = 0 unless @state[field]
         return (@state[field] += value)
       else

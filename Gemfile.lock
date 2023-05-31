@@ -36,7 +36,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  bundler (~> 1.2)
+  bundler (~> 2.4.13)
   rake (>= 10)
   rdoc (>= 6.3.0)
   rspec (~> 3.10)
@@ -44,4 +44,4 @@ DEPENDENCIES
   spf!
 
 BUNDLED WITH
-   1.17.3
+   2.4.13
