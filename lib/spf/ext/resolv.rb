@@ -65,7 +65,7 @@ class Resolv
 end
 
 
-# Fix for (unreported) "nil can't be coerced into Fixnum" TypeError exception
+# Fix for (unreported) "nil can't be coerced into Integer" TypeError exception
 # caused by truncated (or otherwise malformed) answer packets.
 ###############################################################################
 

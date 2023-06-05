@@ -48,14 +48,14 @@ Gem::Specification.new do |s|
       s.add_development_dependency(%q<rake>, [">= 10"])
       s.add_development_dependency(%q<rspec>, ["~> 3.10"])
       s.add_development_dependency(%q<rdoc>, [">= 6.3.0"])
-      s.add_development_dependency(%q<bundler>, ["~> 1.2"])
+      s.add_development_dependency(%q<bundler>, [">= 2.4.13"])
       s.add_development_dependency(%q<simplecov>)
     else
       s.add_dependency(%q<ruby-ip>, ["~> 0.9.1"])
       s.add_dependency(%q<rake>, [">= 10"])
       s.add_dependency(%q<rspec>, ["~> 3.10"])
       s.add_dependency(%q<rdoc>, [">= 6.3.0"])
-      s.add_dependency(%q<bundler>, ["~> 1.2"])
+      s.add_dependency(%q<bundler>, [">= 2.4.13"])
       s.add_dependency(%q<simplecov>)
     end
   else
@@ -63,7 +63,7 @@ Gem::Specification.new do |s|
     s.add_dependency(%q<rake>, [">= 10"])
     s.add_dependency(%q<rspec>, ["~> 3.10"])
     s.add_dependency(%q<rdoc>, [">= 6.3.0"])
-    s.add_dependency(%q<bundler>, ["~> 1.2"])
+    s.add_dependency(%q<bundler>, [">= 2.4.13"])
     s.add_dependency(%q<simplecov>)
   end
 end
