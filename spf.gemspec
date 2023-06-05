@@ -36,7 +36,7 @@ Gem::Specification.new do |s|
     "spf.gemspec"
   ]
   s.homepage = "https://github.com/agaridata/spf-ruby"
-  s.licenses = ["none (all rights reserved)"]
+  s.licenses = ["Apache-2.0"]
   s.rubygems_version = "2.4.6"
   s.summary = "Implementation of the Sender Policy Framework"
 
