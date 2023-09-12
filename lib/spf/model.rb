@@ -745,19 +745,18 @@ class SPF::Mod < SPF::Term
 
     def process(server, request, result)
       begin
-        exp_domain = @domain_spec.new({:server => server, :request => request})
+        exp_domain = @domain_spec.text
         txt_packet = server.dns_lookup(exp_domain, 'TXT')
-        txt_rrs    = txt_packet.answer.select {|x| x.type == 'TXT'}.map {|x| x.answer}
-        unless text_rrs.length > 0
+        unless txt_packet.length > 0
           server.throw_result(:permerror, request,
             "No authority explanation string available at domain '#{exp_domain}'") # RFC 4408, 6.2/4
         end
-        unless text_rrs.length == 1
+        unless txt_packet.length == 1
           server.throw_result(:permerror, request,
             "Redundant authority explanation strings found at domain '#{exp_domain}'") # RFC 4408, 6.2/4
         end
         explanation = SPF::MacroString.new(
-          :text           => txt_rrs[0].char_str_list.join(''),
+          :text           => txt_packet[0].strings.join(''),
           :server         => server,
           :request        => request,
           :is_explanation => true
