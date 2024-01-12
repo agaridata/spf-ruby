@@ -45,7 +45,7 @@ module SPF
   end
 
   def self.hostname
-    return @hostname ||= Addrinfo.getaddrinfo(Socket.gethostname).first
+    return @hostname ||= Addrinfo.getaddrinfo(Socket.gethostname, 0).first.getnameinfo.first
   rescue SocketError
     return @hostname ||= Socket.gethostname
   end
