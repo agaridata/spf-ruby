@@ -81,7 +81,7 @@ module SPF
               if IP::V4 === ip_address
                 value = ip_address.to_addr
               elsif IP::V6 === ip_address
-                value = ip_address.to_hex.upcase.split('').join('.')
+                value = ip_address.to_i.to_s(16).rjust(32, '0').upcase.split('').join('.')
               else
                 server.throw_result(:permerror, request, "Unexpected IP address version in request")
               end

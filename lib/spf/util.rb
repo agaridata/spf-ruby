@@ -86,7 +86,7 @@ module SPF
       octets  = ip_address.to_addr.split('.').first(ip_address.pfxlen / 8)
       return "#{octets .reverse.join('.')}.in-addr.arpa."
     when IP::V6
-      nibbles = ip_address.to_hex .split('') .first(ip_address.pfxlen / 4)
+      nibbles = ip_address.to_i.to_s(16).rjust(32, '0').split('').first(ip_address.pfxlen / 4)
       return "#{nibbles.reverse.join('.')}.ip6.arpa."
     end
   end
