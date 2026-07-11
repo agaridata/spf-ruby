@@ -68,6 +68,12 @@ module SPF
     return ipv6_address.ipv4_mapped?
   end
 
+  # Whether the address portion of a CIDR netblock has bits set outside the
+  # network prefix (e.g. "1.2.3.4/24" has host bits set, "1.2.3.0/24" does not).
+  def self.ip_network_has_host_bits?(ip_network)
+    return ip_network.respond_to?(:offset) && ip_network.offset != 0
+  end
+
   def self.ip_address_to_string(ip_address)
     unless IP::V4 === ip_address or IP::V6 === ip_address
       raise SPF::InvalidOptionValueError.new('IP::V4 or IP::V6 address expected')
