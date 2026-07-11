@@ -78,9 +78,9 @@ module SPF
             elsif char == 'i' # RFC 4408, 8.1/20, 8.1/21
               ip_address = request.ip_address
               ip_address = SPF::Util.ipv6_address_to_ipv4(ip_address) if SPF::Util.ipv6_address_is_ipv4_mapped(ip_address)
-              if IP::V4 === ip_address
-                value = ip_address.to_addr
-              elsif IP::V6 === ip_address
+              if ip_address.ipv4?
+                value = ip_address.to_s
+              elsif ip_address.ipv6?
                 value = ip_address.to_i.to_s(16).rjust(32, '0').upcase.split('').join('.')
               else
                 server.throw_result(:permerror, request, "Unexpected IP address version in request")
@@ -92,9 +92,9 @@ module SPF
               rh_parts = nil
               reverse = nil
             elsif char == 'v' # RFC 4408, 8.1/6/7
-              if IP::V4 === request.ip_address
+              if request.ip_address.ipv4?
                 value = 'in-addr'
-              elsif IP::V6 === request.ip_address
+              elsif request.ip_address.ipv6?
                 value = 'ip6'
               else
                 # Unexpected IP address version.

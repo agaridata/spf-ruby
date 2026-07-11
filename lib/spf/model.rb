@@ -1,16 +1,7 @@
 # encoding: ASCII-8BIT
-require 'ip'
+require 'ipaddr'
 
 require 'spf/util'
-
-
-class IP
-  def contains?(ip_address)
-    return (
-      self.to_irange.first <= ip_address.to_i and
-      self.to_irange.last  >= ip_address.to_i)
-  end
-end
 
 
 class SPF::Record
@@ -161,7 +152,7 @@ class SPF::Term
     self.parse_ipv4_address(required)
     self.parse_ipv4_prefix_length
     begin
-      @ip_network = IP.new("#{@ip_address}/#{@ipv4_prefix_length}") if @ip_address and @ipv4_prefix_length
+      @ip_network = IPAddr.new("#{@ip_address}/#{@ipv4_prefix_length}") if @ip_address and @ipv4_prefix_length
     rescue ArgumentError
       @ip_network = @ip_address
     end
@@ -200,7 +191,7 @@ class SPF::Term
     self.parse_ipv6_address(required)
     self.parse_ipv6_prefix_length
     begin
-      @ip_network = IP.new("#{@ip_address}/#{@ipv6_prefix_length}") if @ip_address and @ipv6_prefix_length
+      @ip_network = IPAddr.new("#{@ip_address}/#{@ipv6_prefix_length}") if @ip_address and @ipv6_prefix_length
     rescue ArgumentError
       @ip_network = @ip_address
     end
@@ -349,13 +340,13 @@ class SPF::Mech < SPF::Term
 
     rrs.each do |rr|
       if Resolv::DNS::Resource::IN::A === rr
-        network = IP.new("#{rr.address}/#{ipv4_prefix_length}")
+        network = IPAddr.new("#{rr.address}/#{ipv4_prefix_length}")
         @ip_netblocks << network
-        return true if network.contains?(request.ip_address)
+        return true if network.include?(request.ip_address)
       elsif Resolv::DNS::Resource::IN::AAAA === rr
-        network = IP.new("#{rr.address}/#{ipv6_prefix_length}")
+        network = IPAddr.new("#{rr.address}/#{ipv6_prefix_length}")
         @ip_netblocks << network
-        return true if network.contains?(request.ip_address_v6)
+        return true if network.include?(request.ip_address_v6)
       else
         # Unexpected RR type.
         # TODO: Generate debug info or ignore silently.
@@ -466,9 +457,9 @@ class SPF::Mech < SPF::Term
 
     def parse_params(required = true)
       self.parse_ipv4_network(required)
-      if IP === @ip_network
+      if IPAddr === @ip_network
         @ip_netblocks << @ip_network
-        if SPF::Util.ip_network_has_host_bits?(@ip_network)
+        if SPF::Util.ip_network_has_host_bits?(@ip_address, @ip_network)
           @errors << SPF::InvalidMechCIDRError.new(
             "Invalid CIDR netblock - bits in host portion of address of #{self.params}"
           )
@@ -480,19 +471,19 @@ class SPF::Mech < SPF::Term
       return nil unless @ip_network
       return @ip_network if String === @ip_network
       # Render the mechanism's original, unmasked address.
-      result = IP.new(@ip_address).to_addr
-      if @ip_network.pfxlen != @default_ipv4_prefix_length
-        result += "/#{@ip_network.pfxlen}"
+      result = IPAddr.new(@ip_address).to_s
+      if @ip_network.prefix != @default_ipv4_prefix_length
+        result += "/#{@ip_network.prefix}"
       end
       return result
     end
 
     def match(server, request, want_result = true)
       return false unless @ip_network
-      ip_network_v6 = IP::V4 === @ip_network ?
+      ip_network_v6 = (IPAddr === @ip_network and @ip_network.ipv4?) ?
         SPF::Util.ipv4_address_to_ipv6(@ip_network) :
         @ip_network
-      return ip_network_v6.contains?(request.ip_address_v6)
+      return ip_network_v6.include?(request.ip_address_v6)
     end
 
   end
@@ -503,8 +494,8 @@ class SPF::Mech < SPF::Term
 
     def parse_params(required = true)
       self.parse_ipv6_network(required)
-      @ip_netblocks << @ip_network if IP === @ip_network
-      if SPF::Util.ip_network_has_host_bits?(@ip_network)
+      @ip_netblocks << @ip_network if IPAddr === @ip_network
+      if SPF::Util.ip_network_has_host_bits?(@ip_address, @ip_network)
         @errors << SPF::InvalidMechCIDRError.new(
           "Invalid CIDR netblock - bits in host portion of address of #{self.params}"
         )
@@ -515,14 +506,14 @@ class SPF::Mech < SPF::Term
       return nil unless @ip_network
       return @ip_network if String === @ip_network
       # Render the mechanism's original, unmasked address.
-      params =  IP.new(@ip_address).to_addr
-      params += '/' + @ip_network.pfxlen.to_s if
-        @ip_network.pfxlen != self.default_ipv6_prefix_length
+      params =  IPAddr.new(@ip_address).to_s
+      params += '/' + @ip_network.prefix.to_s if
+        @ip_network.prefix != self.default_ipv6_prefix_length
       return params
     end
 
     def match(server, request, want_result = true)
-      return @ip_network.contains?(request.ip_address_v6)
+      return @ip_network.include?(request.ip_address_v6)
     end
 
   end

@@ -1,5 +1,5 @@
 # encoding: ASCII-8BIT
-require 'ip'
+require 'ipaddr'
 
 require 'spf/error'
 
@@ -101,9 +101,9 @@ class SPF::Request
 
     return unless @ip_address
 
-    # Ensure ip_address is an IP object:
-    unless IP === @ip_address
-      @ip_address = IP.new(@ip_address)
+    # Ensure ip_address is an IPAddr object:
+    unless IPAddr === @ip_address
+      @ip_address = IPAddr.new(@ip_address)
     end
 
     # Convert IPv4 address to IPv4-mapped IPv6 address:
@@ -111,9 +111,9 @@ class SPF::Request
     if SPF::Util.ipv6_address_is_ipv4_mapped(@ip_address)
       @ip_address_v6 = @ip_address # Accept as IPv6 address as-is
       @ip_address = SPF::Util.ipv6_address_to_ipv4(@ip_address)
-    elsif IP::V4 === @ip_address
+    elsif @ip_address.ipv4?
       @ip_address_v6 = SPF::Util.ipv4_address_to_ipv6(@ip_address)
-    elsif IP::V6 === @ip_address
+    elsif @ip_address.ipv6?
       @ip_address_v6 = @ip_address
     else
       raise SPF::InvalidOptionValueError.new("Unexpected IP address version");

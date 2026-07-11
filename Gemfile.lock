@@ -2,7 +2,6 @@ PATH
   remote: .
   specs:
     spf (0.1.1)
-      ruby-ip (~> 0.9.1)
 
 GEM
   remote: http://rubygems.org/
@@ -32,7 +31,6 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.10.0)
     rspec-support (3.10.3)
-    ruby-ip (0.9.3)
     simplecov (0.21.2)
       docile (~> 1.1)
       simplecov-html (~> 0.11)

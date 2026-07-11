@@ -1,5 +1,5 @@
 # encoding: ASCII-8BIT
-require 'ip'
+require 'ipaddr'
 require 'socket'
 
 require 'spf/error'
@@ -51,15 +51,15 @@ module SPF
   end
 
   def self.ipv4_address_to_ipv6(ipv4_address)
-    unless IP::V4 === ipv4_address
-      raise SPF::InvalidOptionValueError.new('IP::V4 address expected')
+    unless IPAddr === ipv4_address and ipv4_address.ipv4?
+      raise SPF::InvalidOptionValueError.new('IPv4 address expected')
     end
-    return IP.new("::ffff:#{ipv4_address.to_addr}/#{ipv4_address.pfxlen - 32 + 128}")
+    return IPAddr.new("::ffff:#{ipv4_address.to_s}/#{ipv4_address.prefix - 32 + 128}")
   end
 
   def self.ipv6_address_to_ipv4(ipv6_address)
-    unless IP::V6 === ipv6_address and ipv6_address.ipv4_mapped?
-      raise SPF::InvalidOptionValueError, 'IPv4-mapped IP::V6 address expected'
+    unless IPAddr === ipv6_address and ipv6_address.ipv6? and ipv6_address.ipv4_mapped?
+      raise SPF::InvalidOptionValueError, 'IPv4-mapped IPv6 address expected'
     end
     return ipv6_address.native
   end
@@ -70,29 +70,33 @@ module SPF
 
   # Whether the address portion of a CIDR netblock has bits set outside the
   # network prefix (e.g. "1.2.3.4/24" has host bits set, "1.2.3.0/24" does not).
-  def self.ip_network_has_host_bits?(ip_network)
-    return ip_network.respond_to?(:offset) && ip_network.offset != 0
+  # IPAddr masks such bits away on construction, so detection compares the
+  # original, unmasked address string against the masked network.
+  def self.ip_network_has_host_bits?(ip_address_string, ip_network)
+    return false unless IPAddr === ip_network
+    return IPAddr.new(ip_address_string.to_s).to_i != ip_network.to_i
+  rescue IPAddr::Error
+    return false
   end
 
   def self.ip_address_to_string(ip_address)
-    unless IP::V4 === ip_address or IP::V6 === ip_address
-      raise SPF::InvalidOptionValueError.new('IP::V4 or IP::V6 address expected')
+    unless IPAddr === ip_address
+      raise SPF::InvalidOptionValueError.new('IP address expected')
     end
-    return ip_address.to_addr
+    return ip_address.to_s
   end
 
   def self.ip_address_reverse(ip_address)
-    unless IP::V4 === ip_address or IP::V6 === ip_address
-      raise SPF::InvalidOptionValueError.new('IP::V4 or IP::V6 address expected')
+    unless IPAddr === ip_address
+      raise SPF::InvalidOptionValueError.new('IP address expected')
     end
     # Treat IPv4-mapped IPv6 addresses as IPv4 addresses:
     ip_address = ipv6_address_to_ipv4(ip_address) if ip_address.ipv4_mapped?
-    case ip_address
-    when IP::V4
-      octets  = ip_address.to_addr.split('.').first(ip_address.pfxlen / 8)
+    if ip_address.ipv4?
+      octets  = ip_address.to_s.split('.').first(ip_address.prefix / 8)
       return "#{octets .reverse.join('.')}.in-addr.arpa."
-    when IP::V6
-      nibbles = ip_address.to_i.to_s(16).rjust(32, '0').split('').first(ip_address.pfxlen / 4)
+    elsif ip_address.ipv6?
+      nibbles = ip_address.to_i.to_s(16).rjust(32, '0').split('').first(ip_address.prefix / 4)
       return "#{nibbles.reverse.join('.')}.ip6.arpa."
     end
   end

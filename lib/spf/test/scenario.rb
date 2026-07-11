@@ -1,6 +1,6 @@
 require 'spf/test'
 
-require 'ip'
+require 'ipaddr'
 require 'yaml'
 
 #class Resolv::DNS::Resource::IN::SPF < Resolv::DNS::Resource::IN::TXT
@@ -56,7 +56,7 @@ class SPF::Test::Scenario
                 end
               end
             elsif type == 'A' or type == 'AAAA'
-              address = IP.new(data_struct).to_s
+              address = IPAddr.new(data_struct).to_s
               if type == 'A'
                 record = Resolv::DNS::Resource::IN::A.new(address)
               else

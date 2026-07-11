@@ -4,7 +4,7 @@ describe SPF::MacroString do
   before(:each) do
     @request = SPF::Request.new(
       identity: 'strong-bad@email.example.com',
-      ip_address: IP.new('192.0.2.3')
+      ip_address: IPAddr.new('192.0.2.3')
     )
     @server = SPF::Server.new
   end
@@ -96,7 +96,7 @@ describe SPF::MacroString do
       it 'expands the "v" macro letter to the string "ip6" if <ip> is ipv6' do
         request = SPF::Request.new(
           identity: 'strong-bad@email.example.com',
-          ip_address: IP.new('2001:DB8::CB01')
+          ip_address: IPAddr.new('2001:DB8::CB01')
         )
         macro_str = described_class.new(
           text: '%{v}',
@@ -215,7 +215,7 @@ describe SPF::MacroString do
       it 'expands "%{ir}.%{v}._spf.%{d2}" correctly with an IPv6 request' do
         request = SPF::Request.new(
           identity: 'strong-bad@email.example.com',
-          ip_address: IP.new('2001:DB8::CB01')
+          ip_address: IPAddr.new('2001:DB8::CB01')
         )
         macro_str = described_class.new(
           text: '%{ir}.%{v}._spf.%{d2}',

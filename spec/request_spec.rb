@@ -38,8 +38,8 @@ describe 'SPF::Request instantiation' do
   end
 
   it 'has correct ip address' do
-    expect(request.ip_address.is_a?(IP)).to be_truthy
-    expect(request.ip_address).to eq IP.new('192.168.0.1')
+    expect(request.ip_address.is_a?(IPAddr)).to be_truthy
+    expect(request.ip_address).to eq IPAddr.new('192.168.0.1')
   end
 
   it 'has correct helo identity' do
@@ -49,7 +49,7 @@ describe 'SPF::Request instantiation' do
   it 'creates sub-request object' do
     clone = request.new_sub_request(ip_address: '192.168.0.254')
     expect(clone.identity).to eq 'fred@example.com'
-    expect(clone.ip_address).to eq IP.new('192.168.0.254')
+    expect(clone.ip_address).to eq IPAddr.new('192.168.0.254')
   end
 end
 
@@ -199,8 +199,8 @@ end
 
 describe 'IP address validation' do
 
-  it 'accepts IP object for ip_address' do
-    ip_address = IP.new('192.168.0.1')
+  it 'accepts IPAddr object for ip_address' do
+    ip_address = IPAddr.new('192.168.0.1')
     request = SPF::Request.new(
       identity:   'fred@example.com',
       ip_address: ip_address
@@ -213,7 +213,7 @@ describe 'IP address validation' do
       identity:   'fred@example.com',
       ip_address: '::ffff:192.168.0.1'
     )
-    expect(request.ip_address).to eq IP.new('192.168.0.1')
+    expect(request.ip_address).to eq IPAddr.new('192.168.0.1')
   end
 end
 

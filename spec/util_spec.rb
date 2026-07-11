@@ -1,14 +1,14 @@
 require File.expand_path(File.dirname(__FILE__) + '/spec_helper')
 
-require 'ip'
+require 'ipaddr'
 
-ipv4_address          = IP.new('192.168.0.1')
-ipv6_address_v4mapped = IP.new('::ffff:192.168.0.1')
-ipv6_address          = IP.new('2001:db8::1')
+ipv4_address          = IPAddr.new('192.168.0.1')
+ipv6_address_v4mapped = IPAddr.new('::ffff:192.168.0.1')
+ipv6_address          = IPAddr.new('2001:db8::1')
 
 describe "SPF::Util.ipv4_address_to_ipv6" do
-  it "returns IP object" do
-    expect(SPF::Util.ipv4_address_to_ipv6(ipv4_address).is_a?(IP)).to be_truthy
+  it "returns IPAddr object" do
+    expect(SPF::Util.ipv4_address_to_ipv6(ipv4_address).is_a?(IPAddr)).to be_truthy
   end
 
   it "yields correct IPv4-mapped IPv6 address" do
@@ -25,8 +25,8 @@ describe "SPF::Util.ipv4_address_to_ipv6" do
 end
 
 describe "SPF::Util.ipv6_address_to_ipv4" do
-  it "returns IP object" do
-    expect(SPF::Util.ipv6_address_to_ipv4(ipv6_address_v4mapped).is_a?(IP)).to be_truthy
+  it "returns IPAddr object" do
+    expect(SPF::Util.ipv6_address_to_ipv4(ipv6_address_v4mapped).is_a?(IPAddr)).to be_truthy
   end
 
   it "yields correct IPv4 address" do
