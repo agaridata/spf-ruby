@@ -470,7 +470,7 @@ class SPF::Mech < SPF::Term
         @ip_netblocks << @ip_network
         if SPF::Util.ip_network_has_host_bits?(@ip_network)
           @errors << SPF::InvalidMechCIDRError.new(
-            "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
+            "Invalid CIDR netblock - bits in host portion of address of #{self.params}"
           )
         end
       end
@@ -479,7 +479,8 @@ class SPF::Mech < SPF::Term
     def params
       return nil unless @ip_network
       return @ip_network if String === @ip_network
-      result = @ip_network.to_addr
+      # Render the mechanism's original, unmasked address.
+      result = IP.new(@ip_address).to_addr
       if @ip_network.pfxlen != @default_ipv4_prefix_length
         result += "/#{@ip_network.pfxlen}"
       end
@@ -505,7 +506,7 @@ class SPF::Mech < SPF::Term
       @ip_netblocks << @ip_network if IP === @ip_network
       if SPF::Util.ip_network_has_host_bits?(@ip_network)
         @errors << SPF::InvalidMechCIDRError.new(
-          "Invalid CIDR netblock - bits in host portion of address of #{@ip_network}"
+          "Invalid CIDR netblock - bits in host portion of address of #{self.params}"
         )
       end
     end
@@ -513,7 +514,8 @@ class SPF::Mech < SPF::Term
     def params
       return nil unless @ip_network
       return @ip_network if String === @ip_network
-      params =  @ip_network.to_addr
+      # Render the mechanism's original, unmasked address.
+      params =  IP.new(@ip_address).to_addr
       params += '/' + @ip_network.pfxlen.to_s if
         @ip_network.pfxlen != self.default_ipv6_prefix_length
       return params
